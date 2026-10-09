@@ -35,7 +35,8 @@ This is a local preview. It is not a notarized public release, and it does not r
 - [ ] Confirm toolbar window dragging manually: native automation did not produce a verifiable window-position change; tab reordering is verified separately.
 - [ ] Evaluate native materials with a small Electron prototype, measuring readability and performance; honor reduced transparency/motion and define fallbacks.
 - [x] Extend Quiet to Preferences: neutral light/dark palette, section links, accessible labels/focus, responsive fields and preserved settings. Fix PAC URL persistence and deleting an unsaved custom command. Verify reload persistence and all sections at 1024/390/320 px; packaged smoke suite now passes 19 checks.
-- [ ] Evolve history, bookmarks, downloads, reader/PDF surfaces and the new-tab page after the primary chrome is stable.
+- [x] Extend Quiet to Tasks: grouped list, current-task/tab states, responsive layout, accessible controls and keyboard undo. Save pasted task names, retain search through state-sync renders and clear hidden fake focus. Verify cross-task pointer dragging, search/Enter, empty results, keyboard New Task and session persistence.
+- [ ] Refine address/search suggestions, then evolve history, bookmarks, downloads, reader/PDF surfaces and the new-tab page.
 
 Quiet toolbar verification: real packaged Electron app on macOS 27 ARM64; light/dark at 1024, 390 and 320 px, address editing/Escape, Tasks opening/closing and the 15 existing smoke checks passed. No new renderer errors or lint diagnostics were introduced. Tab dragging, keyboard navigation, two-window focus and fullscreen Space coexistence are now verified. Full VoiceOver and broader multi-desktop/monitor coverage remain open. The packaged smoke suite now has 17 checks, including fullscreen booleans, rejected captures/view calls and late captures after tab closure.
 

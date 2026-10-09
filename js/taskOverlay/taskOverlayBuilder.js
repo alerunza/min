@@ -1,3 +1,4 @@
+// Modified for Svelto: accessible Tasks controls and input-based name persistence.
 var browserUI = require('browserUI.js')
 var searchbarUtils = require('searchbar/searchbarUtils.js')
 var urlParser = require('util/urlParser.js')
@@ -25,7 +26,7 @@ function getTaskRelativeDate (task) {
 }
 
 function toggleCollapsed (taskContainer, task) {
-  tasks.update(task.id, {collapsed: !tasks.isCollapsed(task.id)})
+  tasks.update(task.id, { collapsed: !tasks.isCollapsed(task.id) })
   taskContainer.classList.toggle('collapsed')
 
   var collapseButton = taskContainer.querySelector('.task-collapse-button')
@@ -47,7 +48,7 @@ var TaskOverlayBuilder = {
         collapseButton.className = 'task-collapse-button i'
         collapseButton.setAttribute('tabindex', '-1')
 
-        collapseButton.setAttribute('aria-haspopup', 'true')
+        collapseButton.setAttribute('aria-label', l('taskCollapseLabel'))
         if (tasks.isCollapsed(task.id)) {
           collapseButton.classList.add('carbon:chevron-right')
           collapseButton.setAttribute('aria-expanded', 'false')
@@ -70,13 +71,16 @@ var TaskOverlayBuilder = {
         input.placeholder = taskName
         input.value = task.name || taskName
         input.spellcheck = false
+        input.setAttribute('aria-label', l('taskNameLabel'))
+        input.addEventListener('input', function () {
+          tasks.update(task.id, { name: this.value })
+          this.closest('.task-container').setAttribute('aria-label', this.value || taskName)
+        })
 
         input.addEventListener('keyup', function (e) {
           if (e.keyCode === 13) {
             this.blur()
           }
-
-          tasks.update(task.id, {name: this.value})
         })
 
         input.addEventListener('focusin', function (e) {
@@ -91,6 +95,7 @@ var TaskOverlayBuilder = {
       deleteButton: function (container, task) {
         var deleteButton = document.createElement('button')
         deleteButton.className = 'task-delete-button i carbon:trash-can'
+        deleteButton.setAttribute('aria-label', l('taskDeleteLabel'))
         deleteButton.tabIndex = -1 // needed for keyboardNavigationHelper
 
         deleteButton.addEventListener('click', function (e) {
@@ -99,6 +104,7 @@ var TaskOverlayBuilder = {
             browserUI.closeTask(task.id)
           } else {
             container.classList.add('deleting')
+            container.querySelector('.task-delete-warning').focus()
             setTimeout(function () {
               if (container.classList.contains('deleting')) {
                 container.style.opacity = 0
@@ -118,6 +124,15 @@ var TaskOverlayBuilder = {
         deleteWarning.className = 'task-delete-warning'
 
         deleteWarning.innerHTML = l('taskDeleteWarning').unsafeHTML
+        deleteWarning.setAttribute('tabindex', '-1')
+        deleteWarning.setAttribute('role', 'button')
+        deleteWarning.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            container.classList.remove('deleting')
+            container.querySelector('.task-delete-button').focus()
+          }
+        })
         deleteWarning.addEventListener('click', function (e) {
           container.classList.remove('deleting')
         })
@@ -208,6 +223,8 @@ var TaskOverlayBuilder = {
           container.classList.add('selected')
         }
         container.setAttribute('data-task', task.id)
+        container.setAttribute('role', 'group')
+        container.setAttribute('aria-label', task.name || l('defaultTaskName').replace('%n', taskIndex + 1))
 
         container.addEventListener('click', function (e) {
           if (tasks.isCollapsed(task.id)) {
@@ -267,6 +284,8 @@ var TaskOverlayBuilder = {
         var el = searchbarUtils.createItem(data)
 
         el.setAttribute('data-tab', tab.id)
+        if (task.id === tasks.getSelected().id && tab.id === task.tabs.getSelected()) el.setAttribute('aria-current', 'page')
+        el.querySelector('.action-button').setAttribute('aria-label', l('taskCloseTabLabel'))
 
         el.addEventListener('click', function (e) {
           if (!e.metaKey && !e.ctrlKey && !e.shiftKey) {

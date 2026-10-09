@@ -189,6 +189,24 @@ async function quit () {
  for (const url of oldUrls) assert.ok(afterReopen.tasks.some(task => task.tabs.some(tab => tab.url === url)))
  pass('Dock activation reopens a window with retained tasks')
 
+ // Tasks must save pasted names and preserve a no-result search during state sync.
+ await ui("document.getElementById('switch-task-button').click()")
+ await waitFor(() => ui('!document.getElementById("task-overlay").hidden'), 'Tasks open')
+ const namedTask = await ui('tasks.getSelected().id')
+ await ui(`(() => {
+  const input = document.querySelector('.task-container[data-task="${namedTask}"] .task-name');
+  input.value = 'Svelto task fixture';
+  input.dispatchEvent(new InputEvent('input', {bubbles:true, inputType:'insertFromPaste'}));
+ })()`)
+ assert.equal(await ui(`tasks.get('${namedTask}').name`), 'Svelto task fixture')
+ await ui("(() => { const search = document.getElementById('task-search-input'); search.value = 'zzzz-no-fixture'; search.dispatchEvent(new Event('input', {bubbles:true})); tasks.emit('state-sync-change') })()")
+ await waitFor(() => ui('document.querySelectorAll(".task-container:not([hidden])").length === 0'), 'no Tasks matches')
+ assert.equal(await ui('document.querySelectorAll(".task-tab-item.fakefocus").length'), 0)
+ assert.equal(await ui('document.getElementById("task-search-status").hidden'), false)
+ await ui("document.getElementById('switch-task-button').click()")
+ assert.equal(await ui('document.getElementById("task-overlay").inert'), true)
+ pass('Tasks save pasted names, preserve filtering on sync and release hidden controls')
+
  // Exercise preferences through real controls and reload to verify persisted values.
  const preferencesURL = 'min://app/pages/settings/index.html'
  await navigate(preferencesURL)
@@ -216,6 +234,9 @@ async function quit () {
  pass('Preferences persist proxy configuration URL and appearance through reload')
 
  await quit()
+ const savedTasks = JSON.parse(fs.readFileSync(path.join(profile, 'sessionRestore.json'), 'utf8'))
+ assert.ok(savedTasks.state.tasks.some(task => task.id === namedTask && task.name === 'Svelto task fixture'))
+ pass('Task name persists in saved session')
  fs.writeFileSync(path.join(output, 'smoke-results.json'), JSON.stringify({ executablePath, profile, checks, status: 'passed' }, null, 2))
  console.log('Smoke checks passed:', checks.length)
 })().catch(async error => {

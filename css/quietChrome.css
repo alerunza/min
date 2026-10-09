@@ -121,3 +121,129 @@ body.mac .tab-item:focus-visible {
   outline: 2px solid var(--quiet-accent);
   outline-offset: -2px;
 }
+
+/* Quiet Tasks preserves Min's grouped task list and drag targets. */
+body.mac #task-overlay {
+  background: #f0f1ee !important;
+  color: #29352c;
+  white-space: normal;
+}
+body.mac.dark-mode #task-overlay { background: #252726 !important; color: #edf0ea; }
+body.mac #task-overlay *:not(.i) {
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  letter-spacing: normal;
+}
+body.mac #task-overlay-navbar { flex-shrink: 0; border-color: var(--quiet-line); }
+body.mac .task-search-input-container {
+  width: min(450px, calc(100% - 150px));
+  max-width: none;
+  margin: 0 40px 0 75px;
+  padding: 0;
+  -webkit-app-region: no-drag;
+}
+body.mac .task-search-input-container i { left: 11px; top: 8px; font-size: 15px; color: var(--quiet-muted); }
+body.mac .task-search-input-container input {
+  height: 32px;
+  padding: 6px 30px;
+  font-size: 13px;
+  color: inherit;
+  background: var(--quiet-active);
+  border: 1px solid var(--quiet-line);
+  border-radius: 8px;
+}
+body.mac .task-search-input-container input::placeholder { color: var(--quiet-muted); opacity: 1; }
+body.mac #task-area { padding: 20px 0; min-height: 0; }
+body.mac .task-container {
+  width: calc(100% - 48px);
+  max-width: 880px;
+  border: 0;
+  border-bottom: 1px solid var(--quiet-line);
+  padding: 16px 0;
+}
+body.mac .task-container:not([hidden]) + .task-container { padding-top: 16px; }
+body.mac .task-action-container { gap: 8px; padding: 0; }
+body.mac .task-name {
+  min-width: 0;
+  font-size: 17px;
+  font-weight: 600;
+  opacity: 1;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+body.mac .task-container.selected .task-name { color: var(--quiet-accent); }
+body.mac .task-container.selected .task-collapse-button { display: block; visibility: hidden; }
+body.mac .task-collapse-button,
+body.mac .task-delete-button {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 4px;
+  border-radius: 6px;
+  font-size: 16px !important;
+  opacity: .7;
+}
+body.mac .task-container.collapsed .task-delete-button { opacity: .7; }
+body.mac .task-action-container button:hover { background: var(--quiet-hover); }
+body.mac .task-info-container { padding: 0 8px; color: var(--quiet-muted); }
+body.mac .task-info-container span { font-size: 12px; opacity: 1; }
+body.mac .task-tabs-container { margin-top: 8px; }
+body.mac .task-tab-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 40px 8px 32px;
+  min-height: 40px;
+  border-radius: 6px;
+}
+body.mac .task-tab-item .title { font-size: 13px; flex: 1; min-width: 0; max-width: none; }
+body.mac .task-tab-item .secondary-text {
+  font-size: 12px;
+  color: var(--quiet-muted);
+  max-width: 45%;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.mac .task-tab-item > i, body.mac .task-tab-item .icon-image { left: 8px; top: 12px; width: 16px; height: 16px; font-size: 16px; }
+body.mac .task-tab-item:hover { background: var(--quiet-hover); }
+body.mac .task-tab-item:focus, body.mac .task-tab-item.fakefocus { background: var(--quiet-active); }
+body.mac .task-tab-item[aria-current="page"] { box-shadow: inset 2px 0 var(--quiet-accent); }
+body.mac .task-tab-item .action-button { top: 7px; right: 6px; width: 26px; height: 26px; border-radius: 5px; font-size: 16px; }
+body.mac #task-search-status {
+  flex-shrink: 0;
+  width: calc(100% - 48px);
+  max-width: 880px;
+  margin: 16px auto 0;
+  color: var(--quiet-muted);
+  font-size: 13px;
+}
+body.mac #add-task {
+  flex-shrink: 0;
+  width: calc(100% - 48px);
+  max-width: 880px;
+  margin: 0 auto 20px;
+  padding: 12px;
+  border: 1px solid var(--quiet-line);
+  border-radius: 8px;
+  background: var(--quiet-active);
+  color: inherit;
+  font-size: 13px;
+}
+body.mac #add-task span { font-size: 13px; }
+body.mac #add-task:hover { background: var(--quiet-hover); }
+body.mac #task-overlay .task-delete-warning { border-radius: 6px; padding: 14px; font-size: 13px; white-space: normal; background: var(--quiet-active); }
+body.mac #task-overlay :focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: -2px; }
+body.mac #task-overlay.is-dragging-tab #add-task { border: 2px dashed var(--quiet-accent); }
+body.mac .task-container.sortable-chosen { background: var(--quiet-active); }
+body.mac .task-tab-item.dragging-selected { border-left-color: var(--quiet-accent); background: var(--quiet-hover) !important; }
+@media (max-width: 560px) {
+  body.mac .task-container, body.mac #add-task, body.mac #task-search-status { width: calc(100% - 32px); }
+  body.mac .task-tab-item { gap: 6px; }
+  body.mac .task-tab-item .secondary-text { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.mac #task-overlay, body.mac #task-overlay * { transition: none !important; }
+}
