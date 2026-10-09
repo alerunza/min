@@ -87,6 +87,7 @@
     "test:smoke": "node tests/smoke-macos.cjs",
     "test:collections": "node tests/smoke-collections-macos.cjs",
     "test:reading": "node tests/smoke-reading-macos.cjs",
+    "benchmark:macos": "node scripts/benchmarks/macos.cjs",
     "test:sessions": "node tests/session-store.cjs && node tests/smoke-sessions-macos.cjs",
     "test:permissions": "node tests/permission-policy.cjs && node tests/smoke-permissions-files-macos.cjs"
   },
