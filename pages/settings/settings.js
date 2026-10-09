@@ -1,4 +1,4 @@
-// Modified for Svelto: preferences title (2026-10-09).
+// Modified for Svelto: Quiet preferences, accessible fields and conditional input handling.
 document.title = l('settingsPreferencesHeading') + ' | Svelto'
 
 var contentTypeBlockingContainer = document.getElementById('content-type-blocking')
@@ -344,17 +344,17 @@ autoPlayCheckbox.addEventListener('change', function (e) {
 settings.get('customUserAgent', function (value) {
   if (value) {
     userAgentCheckbox.checked = true
-    userAgentInput.style.visibility = 'visible'
+    userAgentInput.hidden = false
     userAgentInput.value = value
   }
 })
 
 userAgentCheckbox.addEventListener('change', function (e) {
   if (this.checked) {
-    userAgentInput.style.visibility = 'visible'
+    userAgentInput.hidden = false
   } else {
     settings.set('customUserAgent', null)
-    userAgentInput.style.visibility = 'hidden'
+    userAgentInput.hidden = true
     showRestartRequiredBanner()
   }
 })
@@ -472,7 +472,7 @@ function createKeyMapListItem (action, keyMap) {
   var li = document.createElement('li')
   var label = document.createElement('label')
   var input = document.createElement('input')
-  label.innerText = formatCamelCase(action)
+  label.innerText = action === 'quitMin' ? 'Quit Svelto' : formatCamelCase(action)
   label.htmlFor = action
 
   input.type = 'text'
@@ -642,14 +642,18 @@ function createBang (bang, snippet, redirect) {
   snippetInput.value = snippet ?? ''
   redirectInput.value = redirect ?? ''
   xButton.className = 'i carbon:close custom-bang-delete-button'
+  xButton.setAttribute('aria-label', 'Delete command')
 
   bangInput.placeholder = l('settingsCustomBangsPhrase')
+  bangInput.setAttribute('aria-label', bangInput.placeholder)
   snippetInput.placeholder = l('settingsCustomBangsSnippet')
+  snippetInput.setAttribute('aria-label', snippetInput.placeholder)
   redirectInput.placeholder = l('settingsCustomBangsRedirect')
+  redirectInput.setAttribute('aria-label', redirectInput.placeholder)
   xButton.addEventListener('click', function () {
     li.remove()
     settings.get('customBangs', (d) => {
-      settings.set('customBangs', d.filter((bang) => bang.phrase !== bangInput.value))
+      settings.set('customBangs', (d || []).filter((bang) => bang.phrase !== bangInput.value))
     })
     showRestartRequiredBanner()
   })

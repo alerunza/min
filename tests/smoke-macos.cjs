@@ -189,6 +189,32 @@ async function quit () {
  for (const url of oldUrls) assert.ok(afterReopen.tasks.some(task => task.tabs.some(tab => tab.url === url)))
  pass('Dock activation reopens a window with retained tasks')
 
+ // Exercise preferences through real controls and reload to verify persisted values.
+ const preferencesURL = 'min://app/pages/settings/index.html'
+ await navigate(preferencesURL)
+ const preferences = source => application.evaluate(({ webContents }, source) => {
+  const contents = webContents.getAllWebContents().find(contents => contents.getURL() === 'min://app/pages/settings/index.html')
+  return contents.executeJavaScript(source, true)
+ }, source)
+ await waitFor(() => preferences('settings.loaded && document.querySelector("#key-map-list input") !== null'), 'preferences ready')
+ assert.equal(await preferences('document.querySelectorAll("main section").length'), 8)
+ await preferences("document.getElementById('add-custom-bang').click(); document.querySelector('.custom-bang-delete-button').click()")
+ assert.equal(await preferences('document.querySelectorAll("#custom-bangs li").length'), 0)
+ pass('Preferences retain all sections and delete an unsaved custom command')
+ await preferences(`(() => {
+  const pac = document.getElementById('pac-url-input');
+  pac.value = 'https://example.com/svelto-fixture.pac';
+  pac.dispatchEvent(new Event('change', {bubbles: true}));
+  document.getElementById('checkbox-show-divider').click();
+ })()`)
+ await waitFor(() => preferences("settings.list.proxy.pacScript === 'https://example.com/svelto-fixture.pac'"), 'PAC URL saved')
+ const dividerBeforeReload = await preferences("document.getElementById('checkbox-show-divider').checked")
+ await preferences('location.reload()')
+ await waitFor(() => preferences('settings.loaded && document.querySelector("#key-map-list input") !== null'), 'preferences reload')
+ assert.equal(await preferences("document.getElementById('pac-url-input').value"), 'https://example.com/svelto-fixture.pac')
+ assert.equal(await preferences("document.getElementById('checkbox-show-divider').checked"), dividerBeforeReload)
+ pass('Preferences persist proxy configuration URL and appearance through reload')
+
  await quit()
  fs.writeFileSync(path.join(output, 'smoke-results.json'), JSON.stringify({ executablePath, profile, checks, status: 'passed' }, null, 2))
  console.log('Smoke checks passed:', checks.length)
