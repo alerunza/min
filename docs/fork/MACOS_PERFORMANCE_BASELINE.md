@@ -21,7 +21,9 @@ Time from spawning the packaged executable to a loaded GUI with a selected tab a
 
 The first observed fresh-profile launch was 1,975 ms and remains in the data. It cannot establish a cold-cache launch time.
 
-## Loaded-tab idle resources
+## Loaded-tab resources with website debuggers attached
+
+**Observer correction:** later controls show that Playwright website debugger attachments keep all fixture documents `visible`. The resource table below is an inspected workload, not native idle browsing. See the [background memory report](MACOS_BACKGROUND_MEMORY_REPORT.md) for 50-tab controls with website debuggers detached. Keep the original observations; native 0/10/30-tab measurements remain open.
 
 Three independent profiles per workload; one foreground fixture tab and the others in the background. Every fixture is actually loaded through the browser add-tab flow and checked for its ready marker. Zero means one blank browser tab, not zero browser UI. Each local document has 200 static cards and no timers, media, remote assets or service workers. These are deliberately small pages, not representative heavy websites.
 
@@ -29,7 +31,7 @@ After loading, wait 10 seconds, then take 16 process-tree snapshots across 15 se
 
 Memory footprint is collected once after each CPU sampling window using macOS `footprint --noCategories -j` for exactly the sampled app PIDs. PID coverage and collection errors are checked. Values are MiB (1,048,576 bytes). RSS is separately summed across processes and may count shared pages multiple times; macOS compression also affects it. Electron documents why RSS alone is unsuitable for interpreting macOS memory: [process memory API](https://www.electronjs.org/docs/latest/api/process#processgetprocessmemoryinfo).
 
-| Loaded documents | Process count | Median footprint | Footprint range | Median summed RSS | Median idle CPU | CPU range |
+| Loaded documents | Process count | Median footprint | Footprint range | Median summed RSS | Median inspected CPU | CPU range |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 0 | 5 | 209.5 MiB | 209.3–214.2 MiB | 529.1 MiB | 1.51% | 1.26–1.59% |
 | 10 | 15 | 646.0 MiB | 641.7–664.9 MiB | 1324.9 MiB | 0.63% | 0.51–1.13% |
@@ -63,7 +65,7 @@ Startup observations in milliseconds, in repetition order:
 ## Interpretation and limits
 
 - At 50 loaded documents, median footprint is about 2.18 GiB and the process count is 55. Investigate the cost of retaining background renderers before choosing an optimization; this baseline alone does not prove which subsystem should change.
-- Idle CPU with 50 loaded static documents is 3.66% of one logical CPU. Active browsing, scrolling, video, scripting and battery impact are not measured.
+- CPU with 50 CDP-inspected static documents is 3.66% of one logical CPU. Active browsing, scrolling, video, scripting and battery impact are not measured.
 - All 22 launches/resource scenarios completed; loaded-tab counts, PID coverage and resource renderer errors were checked. No production browser code was changed for this benchmark. The previously recorded inspector/runtime instability is still open; avoiding the Node inspector here does not demonstrate its resolution.
 - No address/input latency, long-session growth/leak, true cold boot, update behavior, thermal/power-controlled test, Intel/Windows, or comparison with Min/Safari/Chrome is covered. Those need separate workloads and matched settings.
 

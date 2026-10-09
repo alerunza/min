@@ -1,6 +1,6 @@
 # Svelto roadmap
 
-Updated 2026-10-09. Owner: alerunza. Product language: English.
+Updated 2026-10-10. Owner: alerunza. Product language: English.
 
 ## Direction
 
@@ -76,7 +76,9 @@ Record the app commit, macOS version/architecture, reproduction steps and result
 - [ ] Complete dependency licenses, notices, asset attribution and source obligations.
 - [ ] Define supported macOS versions; verify Intel separately before claiming support.
 - [ ] Add meaningful CI checks and verify build workflows on their target platforms.
-- [x] Establish a repeatable macOS ARM64 startup/memory/idle-CPU baseline with 0/10/30/50 actually loaded local documents: five startup pairs and three resource repetitions. See [performance baseline](MACOS_PERFORMANCE_BASELINE.md).
+- [x] Establish a repeatable macOS ARM64 startup/memory/CDP-inspected CPU baseline with 0/10/30/50 actually loaded local documents: five startup pairs and three resource repetitions. See [performance baseline](MACOS_PERFORMANCE_BASELINE.md).
+- [x] Profile background renderer memory, tab switching/closing and CDP observer effects in three lifecycle runs plus three separate 50-tab visibility controls. See [background memory report](MACOS_BACKGROUND_MEMORY_REPORT.md).
+- [ ] Prototype opt-in suspension of eligible inactive tabs; verify exclusions, reload/restoration, session behavior and memory benefit before enabling automatic suspension.
 - [ ] Measure address/input latency and representative active-site workloads; use matched hardware/settings before speed or memory comparisons.
 - [ ] Design optional Min data import with backups and reversible migrations.
 

@@ -15,11 +15,15 @@ const bundle = fs.existsSync(buildPath)
   : path.join(root, 'dist/app/mac-arm64/Svelto.app')
 const executable = process.env.SVELTO_TEST_EXECUTABLE || path.join(bundle, 'Contents/MacOS/Svelto')
 const measuredBundle = path.resolve(path.dirname(executable), '../..')
+const backgroundMode = process.env.SVELTO_BENCH_BACKGROUND === '1'
+const visibilityControlMode = process.env.SVELTO_BENCH_VISIBILITY_CONTROL === '1'
 const repeats = Number(process.env.SVELTO_BENCH_REPEATS || 3),
   startupRepeats = Number(process.env.SVELTO_BENCH_STARTUPS || 5)
 const settleMs = Number(process.env.SVELTO_BENCH_SETTLE_MS || 10000),
   sampleSeconds = Number(process.env.SVELTO_BENCH_SAMPLE_SECONDS || 15)
-const counts = (process.env.SVELTO_BENCH_COUNTS || '0,10,30,50').split(',').map(Number)
+const counts = (process.env.SVELTO_BENCH_COUNTS || (backgroundMode ? '50' : '0,10,30,50'))
+  .split(',')
+  .map(Number)
 assert.equal(process.platform, 'darwin')
 assert.ok(
   repeats > 0 &&
@@ -27,8 +31,20 @@ assert.ok(
     sampleSeconds >= 2 &&
     counts.every((n) => Number.isInteger(n) && n >= 0 && n <= 50)
 )
+assert.ok(
+  !backgroundMode || counts.every((n) => n >= 5),
+  'Background analysis needs at least five loaded tabs'
+)
 const output = path.resolve(
-  process.env.SVELTO_BENCH_OUTPUT || path.join(root, 'output/performance-macos.json')
+  process.env.SVELTO_BENCH_OUTPUT ||
+    path.join(
+      root,
+      visibilityControlMode
+        ? 'output/background-memory-native-control.json'
+        : backgroundMode
+        ? 'output/background-memory-macos.json'
+        : 'output/performance-macos.json'
+    )
 )
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'svelto-benchmark-'))
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -66,6 +82,9 @@ const results = {
       'sum of RSS and CPU time deltas for the launched process and recursive children; fixture server/observer and other Svelto instances excluded',
     rss: 'MiB (1024^2 bytes); shared pages can be counted multiple times; not physical footprint',
     cpu: '100% equals one fully occupied logical CPU; aggregate may exceed 100%',
+    backgroundAnalysis: backgroundMode
+      ? 'Map tab renderer PIDs and heap, switch without unloading, close background tabs to five/one and observe release after 10/30 seconds; no automatic suspension'
+      : null,
     loadedTabs:
       'all fixture documents loaded in separate WebContentsViews; one foreground tab, remaining tabs background; no explicit suspension',
     settleMs,
@@ -83,7 +102,8 @@ function save() {
 async function wait(fn, label, timeout = 60000) {
   const end = performance.now() + timeout
   while (performance.now() < end) {
-    if (current?.child.exitCode !== null || current?.child.signalCode !== null) throw Error('App exited during ' + label)
+    if (current?.child.exitCode !== null || current?.child.signalCode !== null)
+      throw Error('App exited during ' + label)
     if (await fn()) return
     await sleep(25)
   }
@@ -115,6 +135,7 @@ function profile(name) {
   return dir
 }
 async function launch(dir) {
+  assert.ok(!current, 'Previous benchmark instance must be stopped')
   const socket = http.createServer()
   await new Promise((r) => socket.listen(0, '127.0.0.1', r))
   const port = socket.address().port
@@ -129,7 +150,7 @@ async function launch(dir) {
         stdio: ['ignore', 'pipe', 'pipe']
       }
     )
-  const active = (current = { child, dir, logs: '', browser: null })
+  const active = (current = { child, dir, port, logs: '', browser: null })
   child.stderr.on('data', (data) => {
     active.logs = (active.logs + data).slice(-16000)
   })
@@ -281,12 +302,18 @@ async function resources(count, repeat, origin) {
     footprintError = String(e.message).slice(0, 2000)
   }
   if (footprintError) throw Error('Footprint collection failed: ' + footprintError)
-  assert.deepEqual(footprintRaw.processes.map(p => p.pid).sort((a,b)=>a-b), last.processes.map(p => p.pid).sort((a,b)=>a-b))
+  assert.deepEqual(
+    footprintRaw.processes.map((p) => p.pid).sort((a, b) => a - b),
+    last.processes.map((p) => p.pid).sort((a, b) => a - b)
+  )
   if (process.env.SVELTO_BENCH_CAPTURE && repeat === 0) {
     await current.ui.screenshot({ path: '/private/tmp/svelto-benchmark-' + count + '.png' })
   }
   assert.deepEqual(current.errors, [])
+  const background = backgroundMode ? await analyzeBackground(origin, footprintRaw) : undefined
+  assert.deepEqual(current.errors, [])
   results.resources.push({
+    background,
     count,
     repeat,
     readyMs,
@@ -321,6 +348,381 @@ async function resources(count, repeat, origin) {
   )
   await stop()
 }
+async function tabPids() {
+  return current.ui.evaluate(async () => {
+    const data = tabs.get()
+    // The normal view dispatcher owns its callback IDs. Route profiling replies separately,
+    // forwarding all normal replies unchanged and restoring listeners before leaving this probe.
+    const original = ipc.listeners('async-call-result')
+    const callbacks = new Map()
+    const timers = []
+    function dispatch(event, reply) {
+      if (callbacks.has(reply.callId)) callbacks.get(reply.callId)(reply)
+      else original.forEach((listener) => listener.call(ipc, event, reply))
+    }
+    ipc.removeAllListeners('async-call-result')
+    ipc.on('async-call-result', dispatch)
+    try {
+      return await Promise.all(
+        data.map(
+          (tab) =>
+            new Promise((resolve, reject) => {
+              const callId = 'memory-profile-' + tab.id
+              const timeout = setTimeout(() => reject(Error('Renderer PID timed out')), 10000)
+              timers.push(timeout)
+              callbacks.set(callId, (reply) => {
+                clearTimeout(timeout)
+                if (reply.error) reject(Error('Renderer PID lookup failed'))
+                else
+                  resolve({ id: tab.id, url: tab.url, selected: tab.selected, pid: reply.result })
+              })
+              ipc.send('callViewMethod', { id: tab.id, method: 'getOSProcessId', args: [], callId })
+            })
+        )
+      )
+    } finally {
+      timers.forEach(clearTimeout)
+      ipc.removeListener('async-call-result', dispatch)
+      original.forEach((listener) => ipc.on('async-call-result', listener))
+    }
+  })
+}
+async function mappedFootprint(name, origin) {
+  const state = await tabPids()
+  const sample = snapshot(current.child.pid)
+  const file = path.join(work, 'background-' + name + '-' + current.child.pid + '.json')
+  run('/usr/bin/footprint', [
+    '--noCategories',
+    '-j',
+    file,
+    ...sample.processes.map((p) => String(p.pid))
+  ])
+  const raw = JSON.parse(fs.readFileSync(file, 'utf8'))
+  assert.equal(raw.unit, 'byte')
+  assert.deepEqual(raw.errors, [])
+  assert.deepEqual(
+    raw.processes.map((p) => p.pid).sort((a, b) => a - b),
+    sample.processes.map((p) => p.pid).sort((a, b) => a - b)
+  )
+  const memory = new Map(raw.processes.map((p) => [p.pid, p.footprint / 1024 ** 2]))
+  const browserSession = await current.browser.newBrowserCDPSession()
+  const types = await browserSession.send('SystemInfo.getProcessInfo')
+  await browserSession.detach()
+  const tabIds = new Set(state.map((t) => t.pid))
+  const selected = new Set(state.filter((t) => t.selected).map((t) => t.pid))
+  const background = new Set(state.filter((t) => !t.selected).map((t) => t.pid))
+  assert.equal(state.filter((t) => t.selected).length, 1)
+  assert.equal(
+    tabIds.size,
+    state.length,
+    'Fixture renderer sharing changed; aggregate groups must not double count'
+  )
+  const phases = {
+    name,
+    tabs: state.length,
+    processCount: sample.processes.length,
+    footprintMiB: raw['total footprint'] / 1024 ** 2,
+    activeRendererMiB: [...selected].reduce((sum, pid) => sum + memory.get(pid), 0),
+    backgroundRenderersMiB: [...background].reduce((sum, pid) => sum + memory.get(pid), 0),
+    gpuMiB: types.processInfo
+      .filter((p) => p.type === 'GPU')
+      .reduce((sum, p) => sum + (memory.get(p.id) || 0), 0),
+    mainMiB: memory.get(current.child.pid),
+    otherMiB: raw.processes
+      .filter(
+        (p) =>
+          !tabIds.has(p.pid) &&
+          p.pid !== current.child.pid &&
+          types.processInfo.find((t) => t.id === p.pid)?.type !== 'GPU'
+      )
+      .reduce((sum, p) => sum + p.footprint / 1024 ** 2, 0),
+    state,
+    processTypes: types.processInfo,
+    snapshot: sample,
+    footprintRaw: raw
+  }
+  assert.ok(
+    [phases.footprintMiB, phases.activeRendererMiB, phases.backgroundRenderersMiB].every(
+      Number.isFinite
+    )
+  )
+  assert.equal(
+    current.browser
+      .contexts()[0]
+      .pages()
+      .filter((p) => p.url().startsWith(origin + '/fixture/')).length,
+    state.length
+  )
+  console.log(
+    'BACKGROUND',
+    JSON.stringify({
+      phase: name,
+      tabs: state.length,
+      footprintMiB: phases.footprintMiB,
+      backgroundRenderersMiB: phases.backgroundRenderersMiB,
+      gpuMiB: phases.gpuMiB,
+      processes: phases.processCount
+    })
+  )
+  return phases
+}
+async function analyzeBackground(origin, baseline) {
+  const mapped = await tabPids()
+  const heap = []
+  for (const tab of mapped) {
+    const page = current.browser
+      .contexts()[0]
+      .pages()
+      .find((p) => p.url() === tab.url)
+    assert.ok(page)
+    const session = await current.browser.contexts()[0].newCDPSession(page)
+    const memory = await session.send('Runtime.getHeapUsage')
+    const document = await page.evaluate(() => ({
+      visibility: document.visibilityState,
+      nodes: document.getElementsByTagName('*').length
+    }))
+    await session.detach()
+    heap.push({
+      ...tab,
+      heapUsedMiB: memory.usedSize / 1024 ** 2,
+      heapAllocatedMiB: memory.totalSize / 1024 ** 2,
+      document
+    })
+  }
+  const phases = [await mappedFootprint('loaded', origin)]
+  const oldest = mapped[0]
+  const originalPage = current.browser
+    .contexts()[0]
+    .pages()
+    .find((p) => p.url() === oldest.url)
+  await originalPage.evaluate(() => {
+    window.__sveltoMemoryToken = 'draft-preserved'
+    const input = document.createElement('input')
+    input.id = 'memory-draft'
+    input.value = 'Unsaved local draft'
+    document.body.append(input)
+  })
+  await current.ui.evaluate(
+    (id) => document.querySelector('.tab-item[data-tab="' + id + '"]').click(),
+    oldest.id
+  )
+  await wait(
+    () => current.ui.evaluate((id) => tabs.getSelected() === id, oldest.id),
+    'switch oldest'
+  )
+  await sleep(settleMs)
+  assert.equal(await originalPage.evaluate(() => window.__sveltoMemoryToken), 'draft-preserved')
+  phases.push(await mappedFootprint('switched', origin))
+  const keep = new Set([oldest.id, ...mapped.slice(-4).map((t) => t.id)])
+  const close = async (ids) => {
+    for (const id of ids)
+      await current.ui.evaluate(
+        (id) =>
+          document.querySelector('.tab-item[data-tab="' + id + '"] .tab-close-button').click(),
+        id
+      )
+    await sleep(settleMs)
+  }
+  await close(mapped.filter((t) => !keep.has(t.id)).map((t) => t.id))
+  assert.equal(await current.ui.evaluate(() => tabs.count()), Math.min(5, mapped.length))
+  phases.push(await mappedFootprint('closedToFive', origin))
+  await close(mapped.filter((t) => keep.has(t.id) && t.id !== oldest.id).map((t) => t.id))
+  assert.equal(await current.ui.evaluate(() => tabs.count()), 1)
+  phases.push(await mappedFootprint('closedToOne10s', origin))
+  await sleep(20000)
+  phases.push(await mappedFootprint('closedToOne30s', origin))
+  const gone = new Set(mapped.filter((t) => t.id !== oldest.id).map((t) => t.pid))
+  assert.ok(
+    phases.at(-1).snapshot.processes.every((p) => !gone.has(p.pid)),
+    'Closed tab renderer survived'
+  )
+  assert.equal(await originalPage.evaluate(() => window.__sveltoMemoryToken), 'draft-preserved')
+  assert.equal(await originalPage.locator('#memory-draft').inputValue(), 'Unsaved local draft')
+  return {
+    heap,
+    phases,
+    initialFootprintMiB: baseline['total footprint'] / 1024 ** 2,
+    checks: {
+      loadedCount: true,
+      uniquePids: true,
+      switchPreservesDocument: true,
+      closedRenderersExit: true,
+      activeDraftPreserved: true
+    }
+  }
+}
+async function visibilityControl(origin, repetition) {
+  const count = Number(process.env.SVELTO_BENCH_CONTROL_TABS || 50)
+  assert.ok(Number.isInteger(count) && count >= 5 && count <= 50)
+  await launch(profile('visibility-control-' + repetition))
+  for (let i = 0; i < count; i++) {
+    const url = origin + '/fixture/' + i
+    await current.ui.evaluate((url) => ipc.emit('addTab', null, { url }), url)
+    await wait(async () => {
+      const page = current.browser
+        .contexts()[0]
+        .pages()
+        .find((p) => p.url() === url)
+      return (
+        page &&
+        (await page.evaluate(() => document.documentElement.dataset.fixtureReady === 'true'))
+      )
+    }, 'control fixture')
+  }
+  await sleep(settleMs)
+  const attachedFootprint = await mappedFootprint('controlAttached', origin)
+  const attached = []
+  for (const page of current.browser
+    .contexts()[0]
+    .pages()
+    .filter((p) => p.url().startsWith(origin))) {
+    attached.push({
+      url: page.url(),
+      visibility: await page.evaluate(() => document.visibilityState)
+    })
+  }
+  // Drop every Playwright target connection. Reconnect only to the trusted GUI target,
+  // which reads website visibility through existing main-process view calls.
+  await current.browser.close()
+  assert.equal(current.child.exitCode, null)
+  await sleep(1000)
+  const targets = await (await fetch('http://127.0.0.1:' + current.port + '/json/list')).json()
+  const target = targets.find((t) => t.url === 'min://app/index.html')
+  assert.ok(target)
+  const socket = new WebSocket(target.webSocketDebuggerUrl)
+  await new Promise((resolve, reject) => {
+    socket.addEventListener('open', resolve, { once: true })
+    socket.addEventListener('error', reject, { once: true })
+  })
+  let sequence = 0
+  const pending = new Map()
+  socket.addEventListener('message', (message) => {
+    const data = JSON.parse(message.data)
+    const callback = pending.get(data.id)
+    if (callback) {
+      pending.delete(data.id)
+      callback(data)
+    }
+  })
+  const send = (method, params) =>
+    new Promise((resolve, reject) => {
+      const id = ++sequence
+      const timer = setTimeout(() => {
+        pending.delete(id)
+        reject(Error('Control CDP timed out'))
+      }, 15000)
+      pending.set(id, (reply) => {
+        clearTimeout(timer)
+        reply.error ? reject(Error(JSON.stringify(reply.error))) : resolve(reply.result)
+      })
+      socket.send(JSON.stringify({ id, method, params }))
+    })
+  const expression = `(async () => {
+    const original = ipc.listeners('async-call-result'), callbacks = new Map(), timers = [];
+    function dispatch(event,reply){if(callbacks.has(reply.callId))callbacks.get(reply.callId)(reply);else original.forEach(fn=>fn.call(ipc,event,reply))}
+    ipc.removeAllListeners('async-call-result');ipc.on('async-call-result',dispatch);
+    try{return await Promise.all(tabs.get().map(tab=>new Promise((resolve,reject)=>{
+      const callId='visibility-control-'+tab.id;
+      const timer=setTimeout(()=>reject(Error('Visibility reply timed out')),10000);timers.push(timer);
+      callbacks.set(callId,reply=>{clearTimeout(timer);if(reply.error)reject(Error('Visibility read failed'));else resolve({id:tab.id,url:tab.url,selected:tab.selected,visibility:reply.result})});
+      ipc.send('callViewMethod',{id:tab.id,method:'executeJavaScript',args:['document.visibilityState'],callId});
+    })))}finally{timers.forEach(clearTimeout);ipc.removeListener('async-call-result',dispatch);original.forEach(fn=>ipc.on('async-call-result',fn))}
+  })()`
+  const reply = await send('Runtime.evaluate', {
+    expression,
+    awaitPromise: true,
+    returnByValue: true
+  })
+  assert.ok(!reply.exceptionDetails, JSON.stringify(reply.exceptionDetails))
+  const guiOnly = reply.result.value
+  assert.equal(guiOnly.length, count)
+  assert.ok(guiOnly.every((t) => t.visibility === (t.selected ? 'visible' : 'hidden')))
+  await sleep(settleMs)
+  const samples = [snapshot(current.child.pid)]
+  for (let i = 0; i < sampleSeconds; i++) {
+    await sleep(1000)
+    samples.push(snapshot(current.child.pid))
+  }
+  const cpuIntervals = samples.slice(1).map((sample, i) => {
+    const previous = new Map(samples[i].processes.map((p) => [p.pid, p.cpuSeconds]))
+    return (
+      (sample.processes.reduce(
+        (sum, p) => sum + Math.max(0, p.cpuSeconds - (previous.get(p.pid) || 0)),
+        0
+      ) /
+        ((sample.atMs - samples[i].atMs) / 1000)) *
+      100
+    )
+  })
+  const last = samples.at(-1),
+    file = path.join(work, 'native-memory-' + repetition + '.json')
+  run('/usr/bin/footprint', [
+    '--noCategories',
+    '-j',
+    file,
+    ...last.processes.map((p) => String(p.pid))
+  ])
+  const raw = JSON.parse(fs.readFileSync(file, 'utf8'))
+  assert.equal(raw.unit, 'byte')
+  assert.deepEqual(raw.errors, [])
+  assert.deepEqual(
+    raw.processes.map((p) => p.pid).sort((a, b) => a - b),
+    last.processes.map((p) => p.pid).sort((a, b) => a - b)
+  )
+  const memory = new Map(raw.processes.map((p) => [p.pid, p.footprint / 1024 ** 2]))
+  const gpuPids = new Set(
+    attachedFootprint.processTypes.filter((p) => p.type === 'GPU').map((p) => p.id)
+  )
+  const backgroundPids = new Set(
+    attachedFootprint.state.filter((t) => !t.selected).map((t) => t.pid)
+  )
+  const activePid = attachedFootprint.state.find((t) => t.selected).pid
+  assert.ok([...backgroundPids, activePid].every((pid) => memory.has(pid)))
+  const native = {
+    count,
+    footprintMiB: raw['total footprint'] / 1024 ** 2,
+    activeRendererMiB: memory.get(activePid),
+    backgroundRenderersMiB: [...backgroundPids].reduce((sum, pid) => sum + memory.get(pid), 0),
+    gpuMiB: [...gpuPids].reduce((sum, pid) => sum + (memory.get(pid) || 0), 0),
+    mainMiB: memory.get(current.child.pid),
+    cpuMeanPercent: cpuIntervals.reduce((sum, n) => sum + n, 0) / cpuIntervals.length,
+    samples,
+    cpuIntervals,
+    footprintRaw: raw,
+    processCount: last.processes.length
+  }
+  socket.close()
+  const endpoint = await (await fetch('http://127.0.0.1:' + current.port + '/json/version')).json()
+  current.browser = await chromium.connectOverCDP(endpoint.webSocketDebuggerUrl)
+  current.ui = current.browser
+    .contexts()[0]
+    .pages()
+    .find((p) => p.url() === 'min://app/index.html')
+  const control = {
+    repetition,
+    attached,
+    guiOnly,
+    attachedFootprint,
+    native,
+    method:
+      'Website debugger connections detached; only GUI Runtime client attached; website reads through existing trusted view IPC'
+  }
+  console.log(
+    'VISIBILITY_CONTROL',
+    JSON.stringify({
+      repetition,
+      count,
+      backgroundHidden: guiOnly.filter((t) => t.visibility === 'hidden').length,
+      footprintMiB: native.footprintMiB,
+      gpuMiB: native.gpuMiB,
+      backgroundRenderersMiB: native.backgroundRenderersMiB,
+      cpuMeanPercent: native.cpuMeanPercent
+    })
+  )
+  assert.deepEqual(current.errors, [])
+  await stop()
+  return control
+}
 function median(values) {
   const list = values.slice().sort((a, b) => a - b)
   const middle = Math.floor(list.length / 2)
@@ -347,7 +749,17 @@ function median(values) {
   }
   await new Promise((r) => server.listen(0, '127.0.0.1', r))
   const origin = 'http://127.0.0.1:' + server.address().port
-  for (let i = 0; i < startupRepeats; i++) {
+  if (visibilityControlMode) {
+    results.visibilityControls = []
+    for (let repetition = 0; repetition < repeats; repetition++) {
+      results.visibilityControls.push(await visibilityControl(origin, repetition))
+      save()
+    }
+    results.status = 'complete'
+    save()
+    return
+  }
+  for (let i = 0; i < (backgroundMode ? 0 : startupRepeats); i++) {
     const dir = profile('startup-' + i)
     for (const kind of ['freshProfile', 'repeatProfile']) {
       const readyMs = await launch(dir)
@@ -362,16 +774,24 @@ function median(values) {
     for (const count of ordered) await resources(count, repeat, origin)
   }
   results.summary = {
-    startup: Object.fromEntries(
-      ['freshProfile', 'repeatProfile'].map((kind) => [
-        kind,
-        {
-          medianMs: median(results.startup.filter((r) => r.kind === kind).map((r) => r.readyMs)),
-          minMs: Math.min(...results.startup.filter((r) => r.kind === kind).map((r) => r.readyMs)),
-          maxMs: Math.max(...results.startup.filter((r) => r.kind === kind).map((r) => r.readyMs))
-        }
-      ])
-    ),
+    startup: backgroundMode
+      ? null
+      : Object.fromEntries(
+          ['freshProfile', 'repeatProfile'].map((kind) => [
+            kind,
+            {
+              medianMs: median(
+                results.startup.filter((r) => r.kind === kind).map((r) => r.readyMs)
+              ),
+              minMs: Math.min(
+                ...results.startup.filter((r) => r.kind === kind).map((r) => r.readyMs)
+              ),
+              maxMs: Math.max(
+                ...results.startup.filter((r) => r.kind === kind).map((r) => r.readyMs)
+              )
+            }
+          ])
+        ),
     resources: counts.map((count) => {
       const rows = results.resources.filter((r) => r.count === count)
       return {
