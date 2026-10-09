@@ -1,3 +1,4 @@
+// Modified for Svelto: handle asynchronous view/capture failures during tab transitions.
 var viewMap = {} // id: view
 var viewStateMap = {} // id: view state
 
@@ -55,6 +56,7 @@ function createView (existingViewId, id, webPreferences, boundsString, events) {
 
   events.forEach(function (event) {
     view.webContents.on(event, function (e) {
+      if (viewMap[id] !== view) return // ignore events from a closed or replaced view
       var args = Array.prototype.slice.call(arguments).slice(1)
 
       const eventTarget = getWindowFromViewContents(view.webContents) || windows.getCurrent()
@@ -405,16 +407,15 @@ ipc.on('callViewMethod', function (e, data) {
   }
   if (result instanceof Promise) {
     result.then(function (result) {
-      if (data.callId) {
+      if (data.callId && !e.sender.isDestroyed()) {
         e.sender.send('async-call-result', { callId: data.callId, error: null, result })
       }
-    })
-    result.catch(function (error) {
-      if (data.callId) {
+    }, function (error) {
+      if (data.callId && !e.sender.isDestroyed()) {
         e.sender.send('async-call-result', { callId: data.callId, error, result: null })
       }
     })
-  } else if (data.callId) {
+  } else if (data.callId && !e.sender.isDestroyed()) {
     e.sender.send('async-call-result', { callId: data.callId, error, result })
   }
 })
@@ -445,12 +446,18 @@ ipc.on('getCapture', function (e, data) {
   }
 
   view.webContents.capturePage().then(function (img) {
+    if (viewMap[data.id] !== view || view.webContents.isDestroyed()) return
     var size = img.getSize()
     if (size.width === 0 && size.height === 0) {
       return
     }
     img = img.resize({ width: data.width, height: data.height })
-    e.sender.send('captureData', { id: data.id, url: img.toDataURL() })
+    if (!e.sender.isDestroyed()) e.sender.send('captureData', { id: data.id, url: img.toDataURL() })
+  }).catch(function (error) {
+    // Chromium can reject captures while the view is being hidden or destroyed.
+    if (!view.webContents.isDestroyed() && error.message !== 'UnknownVizError') {
+      console.warn('Could not capture tab preview:', error.message)
+    }
   })
 })
 
@@ -458,10 +465,13 @@ ipc.on('saveViewCapture', function (e, data) {
   var view = viewMap[data.id]
   if (!view) {
     // view could have been destroyed
+    return
   }
 
   view.webContents.capturePage().then(function (image) {
-    view.webContents.downloadURL(image.toDataURL())
+    if (!view.webContents.isDestroyed()) view.webContents.downloadURL(image.toDataURL())
+  }).catch(function (error) {
+    console.warn('Could not save page capture:', error.message)
   })
 })
 

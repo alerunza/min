@@ -1,4 +1,4 @@
-// Modified for Svelto: keep the committed page address after an attachment download (2026-10-09).
+// Modified for Svelto: retain attachment addresses and ignore stale events during tab/window changes.
 var urlParser = require('util/urlParser.js')
 var settings = require('util/settings/settings.js')
 
@@ -126,7 +126,7 @@ const webviews = {
     }
   },
   emitEvent: function (event, tabId, args) {
-    if (!webviews.hasViewForTab(tabId)) {
+    if (!tabs.get(tabId) || !webviews.hasViewForTab(tabId)) {
       // the view could have been destroyed between when the event was occured and when it was recieved in the UI process, see https://github.com/minbrowser/min/issues/604#issuecomment-419653437
       return
     }
@@ -501,7 +501,7 @@ ipc.on('async-call-result', function (e, args) {
 })
 
 ipc.on('view-ipc', function (e, args) {
-  if (!webviews.hasViewForTab(args.id)) {
+  if (!tabs.get(args.id) || !webviews.hasViewForTab(args.id)) {
     // the view could have been destroyed between when the event was occured and when it was recieved in the UI process, see https://github.com/minbrowser/min/issues/604#issuecomment-419653437
     return
   }
@@ -517,7 +517,9 @@ setInterval(function () {
 }, 15000)
 
 ipc.on('captureData', function (e, data) {
-  tabs.update(data.id, { previewImage: data.url })
+  const task = tasks.getTaskContainingTab(data.id)
+  if (!task) return // the capture can arrive after the tab has closed
+  task.tabs.update(data.id, { previewImage: data.url })
   if (data.id === webviews.selectedId && webviews.placeholderRequests.length > 0) {
     placeholderImg.src = data.url
     placeholderImg.hidden = false

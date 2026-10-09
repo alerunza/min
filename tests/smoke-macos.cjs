@@ -30,7 +30,13 @@ function pass (name, detail) { checks.push({ name, status: 'passed', detail }); 
 async function waitFor (callback, label, timeout = 20000) {
  const start = Date.now()
  while (Date.now() - start < timeout) {
-  if (await callback()) return
+  try {
+   if (await callback()) return
+  } catch (error) {
+   // These polling callbacks only read state; never retry actions after a lost inspector reply.
+   if (!error.message.includes('Resulting promise was garbage collected')) throw error
+   console.warn('Retrying transient Playwright inspector collection:', label)
+  }
   await new Promise(resolve => setTimeout(resolve, 200))
  }
  throw new Error('Timed out: ' + label)
@@ -80,6 +86,40 @@ async function quit () {
  pass('English interface and Svelto window title')
  await waitFor(() => application.evaluate(({ webContents }) => webContents.getAllWebContents().some(contents => contents.getURL() === 'min://app/pages/welcome/index.html' && !contents.isLoading())), 'welcome page')
  pass('Independent welcome page')
+ // Native fullscreen must honor both boolean values, including exit.
+ await ui("ipc.invoke('setFullScreen', true)")
+ await waitFor(() => application.evaluate(({ BaseWindow }) => BaseWindow.getAllWindows().some(window => window.isVisible() && window.isFullScreen())), 'native fullscreen entry')
+ await waitFor(() => ui("document.body.classList.contains('fullscreen')"), 'renderer fullscreen entry')
+ await ui("ipc.invoke('setFullScreen', false)")
+ await waitFor(() => application.evaluate(({ BaseWindow }) => BaseWindow.getAllWindows().filter(window => window.isVisible()).every(window => !window.isFullScreen())), 'native fullscreen exit')
+ await waitFor(async () => !(await ui("document.body.classList.contains('fullscreen')")), 'renderer fullscreen exit')
+ pass('Fullscreen IPC enters and exits with synchronized UI state')
+ // Reproduce rejected preview captures and async view calls without a GPU race.
+ const captureTab = (await selectedState()).selected.id
+ await application.evaluate((_electron, tabId) => {
+  const contents = global.getView(tabId).webContents
+  const errors = []
+  const listener = error => errors.push(error.message)
+  global.sveltoCaptureRegression = { contents, original: contents.capturePage, errors, listener }
+  process.on('unhandledRejection', listener)
+  contents.capturePage = () => Promise.reject(new Error('UnknownVizError'))
+  contents.sveltoRejectedMethod = () => Promise.reject(new Error('Svelto fixture rejection'))
+ }, captureTab)
+ try {
+  await ui(`ipc.send('getCapture', {id: ${JSON.stringify(captureTab)}, width: 10, height: 10})`)
+  await ui(`ipc.send('callViewMethod', {id: ${JSON.stringify(captureTab)}, method: 'sveltoRejectedMethod', args: []})`)
+  await application.evaluate(() => new Promise(resolve => setTimeout(resolve, 200)))
+  assert.deepEqual(await application.evaluate(() => global.sveltoCaptureRegression.errors), [])
+ } finally {
+  await application.evaluate(() => {
+   const regression = global.sveltoCaptureRegression
+   regression.contents.capturePage = regression.original
+   delete regression.contents.sveltoRejectedMethod
+   process.removeListener('unhandledRejection', regression.listener)
+   delete global.sveltoCaptureRegression
+  })
+ }
+ pass('Rejected preview captures and async view calls are handled')
  await ui("document.getElementById('add-tab-button').click()")
  assert.equal((await selectedState()).count, 2)
  pass('New tab from toolbar')
@@ -104,7 +144,10 @@ async function quit () {
  const removable = (await selectedState()).selected.id
  await ui(`document.querySelector('.tab-item[data-tab="${removable}"] .tab-close-button').click()`)
  assert.equal((await selectedState()).count, 2)
- pass('Close tab without losing other tabs')
+ // A capture already in flight may return after its tab has been closed.
+ await ui(`ipc.emit('captureData', null, {id: ${JSON.stringify(removable)}, url: 'data:image/png;base64,'})`)
+ assert.equal((await selectedState()).count, 2)
+ pass('Close tab without losing other tabs; late captures ignored')
  // Resolve the save destination only for this test download, keeping real dialogs unchanged.
  await application.evaluate(({ session }, savePath) => {
   session.fromPartition('persist:webcontent').once('will-download', (_event, item) => item.setSavePath(savePath))

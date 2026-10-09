@@ -480,8 +480,9 @@ app.on('activate', function (/* e, hasVisibleWindows */) {
   }
 })
 
-ipc.on('focusMainWebContents', function () {
-  getWindowWebContents(windows.getCurrent()).focus()
+ipc.on('focusMainWebContents', function (event) {
+  const owner = windows.windowFromContents(event.sender)
+  if (owner && owner.win.isFocused()) event.sender.focus()
 })
 
 ipc.on('showSecondaryMenu', function (event, data) {

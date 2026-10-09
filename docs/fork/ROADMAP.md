@@ -16,6 +16,7 @@ Create a personal evolution of Min: minimal, lightweight and reliable, with macO
 - [x] Add an English welcome page, update titles/help links and disable upstream Min update prompts.
 - [x] Verify navigation, tabs, attachments, private-tab exclusion, session restore, native window close and Dock activation: 15 packaged-app smoke checks passed.
 - [x] Fix quick-quit/window-close session loss and attachment downloads leaving the wrong tab address.
+- [x] Fix fullscreen exit ignoring its boolean, handle rejected preview/view promises and filter stale events after tab/window transitions. Keep UI focus requests scoped to their owning foreground window.
 - [x] Prepare Quiet, Inset and Focus prototypes; select Quiet.
 - [x] Verify the local ad hoc signature, including the app extracted from the preview ZIP.
 
@@ -26,13 +27,16 @@ This is a local preview. It is not a notarized public release, and it does not r
 - [x] Apply Quiet toolbar typography, spacing, colors, corner radii, Tasks icon and control states; production icons remain pending.
 - [x] Refine toolbar, address editing, loading indicators and tab states without changing the navigation structure.
 - [x] Preserve task organization and improve the Tasks control and visible keyboard focus.
-- [ ] Verify tab opening, closing, switching, dragging and focus behavior.
-- [ ] Apply coherent light/dark appearance, contrast, keyboard navigation and VoiceOver support.
-- [ ] Verify window controls, resizing, fullscreen, Spaces and shortcuts on macOS.
+- [x] Verify tab opening, closing/restoring, switching, dragging and focus behavior.
+- [x] Add Mac toolbar keyboard navigation: F6/Shift+F6, tab arrows/Home/End, Enter to edit, Tab through controls and visible focus.
+- [ ] Complete contrast and VoiceOver audits across all browser surfaces.
+- [x] Verify minimize/restore, zoom/unzoom, resizing, native fullscreen entry/exit and common shortcuts on macOS 27 ARM64. Verify two independent windows and focus switching between a normal window and a native fullscreen Space.
+- [ ] Extend Spaces verification to multiple normal desktops, external monitors and other supported Mac/OS configurations.
+- [ ] Confirm toolbar window dragging manually: native automation did not produce a verifiable window-position change; tab reordering is verified separately.
 - [ ] Evaluate native materials with a small Electron prototype, measuring readability and performance; honor reduced transparency/motion and define fallbacks.
 - [ ] Evolve settings, history, bookmarks, downloads, reader/PDF surfaces and the new-tab page after the primary chrome is stable.
 
-Quiet toolbar verification: real packaged Electron app on macOS 27 ARM64; light/dark at 1024, 390 and 320 px, address editing/Escape, Tasks opening/closing and the 15 existing smoke checks passed. No new renderer errors or lint diagnostics were introduced. Full VoiceOver, tab dragging, Spaces and fullscreen validation remain open.
+Quiet toolbar verification: real packaged Electron app on macOS 27 ARM64; light/dark at 1024, 390 and 320 px, address editing/Escape, Tasks opening/closing and the 15 existing smoke checks passed. No new renderer errors or lint diagnostics were introduced. Tab dragging, keyboard navigation, two-window focus and fullscreen Space coexistence are now verified. Full VoiceOver and broader multi-desktop/monitor coverage remain open. The packaged smoke suite now has 17 checks, including fullscreen booleans, rejected captures/view calls and late captures after tab closure.
 
 Keep Electron/Chromium during this iteration. A SwiftUI/WebKit rewrite is a separate architectural decision with web compatibility and Windows implications.
 
@@ -40,7 +44,8 @@ Keep Electron/Chromium during this iteration. A SwiftUI/WebKit rewrite is a sepa
 
 - [ ] Reproduce and classify the 55 candidate reports in MACOS_BACKLOG: current bugs, duplicates, upstream fixes, feature requests or external limits.
 - [ ] Fix remaining crashes and data-loss risks with reproducible regression checks.
-- [ ] Verify crash/update recovery, multiple windows and long sessions with many tabs.
+- [ ] Verify crash/update recovery and long sessions with many tabs; the two-window interaction baseline is verified.
+- [ ] Investigate intermittent startup/debugger failures seen under Playwright on Electron 43.4.1/macOS 27 (including an Electron Framework inspector/libuv native crash). Read-only polling retries a lost inspector promise; actions are never retried automatically. Chromium GPU/deprecation warnings remain under investigation.
 - [ ] Verify camera, microphone, screen sharing, permissions, uploads, printing, PDFs and file opening.
 - [ ] Check external links, default-browser handling, login flows, password-manager integrations and commonly used sites.
 - [ ] Audit Electron/Chromium versions, dependency security, IPC boundaries and web-content privileges; define update policy.

@@ -99,7 +99,7 @@ ipc.handle('close', function (e) {
 })
 
 ipc.handle('setFullScreen', function (e, fullScreen) {
-  windows.windowFromContents(e.sender).win.setFullScreen(e, fullScreen)
+  windows.windowFromContents(e.sender).win.setFullScreen(fullScreen)
 })
 
 //workaround for https://github.com/electron/electron/issues/38540
