@@ -1,3 +1,4 @@
+// Svelto: history replies must still belong to the open address query.
 var searchbar = require('searchbar/searchbar.js')
 var searchbarPlugins = require('searchbar/searchbarPlugins.js')
 var searchbarUtils = require('searchbar/searchbarUtils.js')
@@ -27,6 +28,10 @@ async function showSearchbarPlaceResults (text, input, inputFlags, pluginName = 
   var canAutocomplete = pluginName === 'places' && !inputFlags.isDeletion
 
   let results = await searchFn(text)
+
+  if (searchbar.associatedInput !== input || searchbar.getValue() !== text) {
+    return
+  }
 
   // prevent responses from returning out of order
   if (responseSent < currentResponseSent) {

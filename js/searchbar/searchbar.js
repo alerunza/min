@@ -1,3 +1,4 @@
+// Svelto: expose the search panel state and normalize legacy input flags.
 const EventEmitter = require('events')
 
 var webviews = require('webviews.js')
@@ -22,8 +23,13 @@ var searchbar = {
   show: function (associatedInput) {
     searchbar.el.hidden = false
     searchbar.associatedInput = associatedInput
+    associatedInput.setAttribute('aria-expanded', 'true')
+    associatedInput.setAttribute('aria-controls', 'searchbar')
   },
   hide: function () {
+    if (searchbar.associatedInput) {
+      searchbar.associatedInput.setAttribute('aria-expanded', 'false')
+    }
     searchbar.associatedInput = null
     searchbar.el.hidden = true
 
@@ -34,7 +40,9 @@ var searchbar = {
     return text.replace(text.substring(searchbar.associatedInput.selectionStart, searchbar.associatedInput.selectionEnd), '')
   },
   showResults: function (text, inputFlags = {}) {
-    searchbarPlugins.run(text, searchbar.associatedInput, inputFlags)
+    if (searchbar.associatedInput) {
+      searchbarPlugins.run(text, searchbar.associatedInput, inputFlags || {})
+    }
   },
   openURL: function (url, event) {
     var hasURLHandler = searchbarPlugins.runURLHandlers(url)

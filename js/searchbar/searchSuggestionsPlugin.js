@@ -1,10 +1,17 @@
+// Svelto: discard stale/closed/private requests and contain network failures.
 var searchbarPlugins = require('searchbar/searchbarPlugins.js')
 
 var urlParser = require('util/urlParser.js')
 var searchEngine = require('util/searchEngine.js')
 
 function showSearchSuggestions (text, input, inputFlags) {
-    const suggestionsURL = searchEngine.getCurrent().suggestionsURL
+  const searchbar = require('searchbar/searchbar.js')
+  const isCurrentQuery = () => searchbar.associatedInput === input &&
+    searchbar.getValue() === text && !tabs.get(tabs.getSelected()).private
+  if (!isCurrentQuery()) {
+    return
+  }
+  const suggestionsURL = searchEngine.getCurrent().suggestionsURL
 
   if (!suggestionsURL) {
     searchbarPlugins.reset('searchSuggestions')
@@ -23,15 +30,18 @@ function showSearchSuggestions (text, input, inputFlags) {
       return response.json()
     })
     .then(function (results) {
+      if (!isCurrentQuery()) {
+        return
+      }
       searchbarPlugins.reset('searchSuggestions')
 
       if (searchbarPlugins.getResultCount() > 3) {
         return
       }
 
-      if (results) {
+      if (Array.isArray(results) && Array.isArray(results[1])) {
         results = results[1].slice(0, 3)
-        results.forEach(function (result) {
+        results.filter(result => typeof result === 'string').forEach(function (result) {
           var data = {
             title: result,
             url: result
@@ -45,6 +55,11 @@ function showSearchSuggestions (text, input, inputFlags) {
 
           searchbarPlugins.addResult('searchSuggestions', data)
         })
+      }
+    })
+    .catch(function () {
+      if (isCurrentQuery()) {
+        searchbarPlugins.reset('searchSuggestions')
       }
     })
 }

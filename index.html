@@ -137,7 +137,7 @@
       </div>
       <div id="tabs">
         <div id="tab-editor" hidden>
-          <input id="tab-editor-input" spellcheck="false" />
+          <input id="tab-editor-input" spellcheck="false" role="combobox" aria-autocomplete="both" aria-haspopup="dialog" aria-expanded="false" aria-controls="searchbar" />
         </div>
         <div id="tabs-inner" role="tablist" class="has-thin-scrollbar"></div>
       </div>
@@ -163,7 +163,7 @@
       </svg>
     </button>
 
-    <div id="searchbar" class="theme-background-color theme-text-color">
+    <div id="searchbar" class="theme-background-color theme-text-color" role="dialog" hidden>
       <div class="top-answer-area"></div>
     </div>
 

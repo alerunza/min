@@ -126,6 +126,119 @@ async function quit () {
  await navigate(baseURL + '/one')
  await waitFor(async () => (await selectedState()).selected.title === 'First page', 'first page title')
  pass('Address-bar navigation and page title')
+ // Exercise actual keyboard input and deliberately reordered network suggestions.
+ const interfacePage = application.context().pages().find(page => page.url() === 'min://app/index.html')
+ async function addressKey (keyCode, modifiers = []) {
+  await application.evaluate(({ webContents }, { keyCode, modifiers }) => {
+   const contents = webContents.getAllWebContents().find(contents => contents.getURL() === 'min://app/index.html')
+   contents.sendInputEvent({ type: 'keyDown', keyCode, modifiers })
+   contents.sendInputEvent({ type: 'keyUp', keyCode, modifiers })
+  }, { keyCode, modifiers })
+ }
+ await ui(`(() => {
+  window.sveltoSearchFixture = {fetch: window.fetch, requests: [], errors: []};
+  window.sveltoSearchFixture.listener = event => window.sveltoSearchFixture.errors.push(String(event.reason));
+  window.addEventListener('unhandledrejection', window.sveltoSearchFixture.listener);
+  window.fetch = (url, options) => {
+   if (String(url).includes('ac.duckduckgo.com')) {
+    return new Promise((resolve, reject) => window.sveltoSearchFixture.requests.push({url: String(url), resolve, reject}));
+   }
+   return window.sveltoSearchFixture.fetch(url, options);
+  };
+ })()`)
+ try {
+  await addressKey('l', ['meta'])
+  await waitFor(() => ui("document.activeElement.id === 'tab-editor-input'"), 'Cmd+L address focus')
+  assert.equal(await ui("document.getElementById('tab-editor-input').selectionEnd - document.getElementById('tab-editor-input').selectionStart"), (baseURL + '/one').length)
+  await interfacePage.locator('#tab-editor-input').fill('sveltoalpha')
+  await waitFor(() => ui("sveltoSearchFixture.requests.some(r => r.url.includes('sveltoalpha'))"), 'first suggestion request')
+  await interfacePage.locator('#tab-editor-input').fill('sveltobeta')
+  await waitFor(() => ui("sveltoSearchFixture.requests.some(r => r.url.includes('sveltobeta'))"), 'second suggestion request')
+  await ui("sveltoSearchFixture.requests.find(r => r.url.includes('sveltobeta')).resolve({json: async () => ['sveltobeta', ['Svelto browser', 'Svelto minimal browser']]})")
+  await waitFor(() => ui("document.querySelector('[data-plugin=searchSuggestions]').textContent.includes('Svelto browser')"), 'new suggestions')
+  await ui("sveltoSearchFixture.requests.find(r => r.url.includes('sveltoalpha')).resolve({json: async () => ['sveltoalpha', ['Obsolete suggestion']]})")
+  await interfacePage.waitForTimeout(100)
+  assert.equal(await ui("document.querySelector('[data-plugin=searchSuggestions]').textContent.includes('Obsolete')"), false)
+  pass('Search suggestions discard out-of-order replies')
+  await interfacePage.keyboard.press('ArrowDown')
+  await waitFor(() => ui("document.activeElement.closest('[data-plugin=searchSuggestions]') !== null"), 'arrow selection')
+  await interfacePage.keyboard.press('ArrowUp')
+  assert.equal(await ui('document.activeElement.id'), 'tab-editor-input')
+  await interfacePage.keyboard.press('Tab')
+  assert.equal(await ui("document.activeElement.classList.contains('searchbar-item')"), true)
+  await interfacePage.keyboard.press('Shift+Tab')
+  assert.equal(await ui('document.activeElement.id'), 'tab-editor-input')
+  // Enter confirms an IME composition; it must not start navigation.
+  await ui("document.getElementById('tab-editor-input').dispatchEvent(new KeyboardEvent('keypress', {bubbles: true, key: 'Enter', keyCode: 13, isComposing: true}))")
+  assert.equal((await selectedState()).selected.url, baseURL + '/one')
+  assert.equal(await ui("document.getElementById('tab-editor').hidden"), false)
+  pass('Search keyboard selection, reverse traversal and IME Enter')
+  if (process.env.SVELTO_CAPTURE_SEARCH) {
+   for (const [name, dark, width] of [['light', false, 1024], ['dark', true, 1024], ['320', false, 320], ['390', false, 390]]) {
+    await application.evaluate(({ BaseWindow }, width) => BaseWindow.getAllWindows().find(window => window.isVisible()).setContentSize(width, 720), width)
+    await ui(`ipc.emit('settingChanged', null, 'darkThemeIsActive', ${dark})`)
+    await interfacePage.waitForTimeout(500)
+    await interfacePage.screenshot({path: '/private/tmp/svelto-search-' + name + '.png'})
+    assert.equal(await ui('document.documentElement.scrollWidth > window.innerWidth'), false)
+    if (name === 'light') {
+     await interfacePage.keyboard.press('ArrowDown')
+     await interfacePage.screenshot({path: '/private/tmp/svelto-search-selected.png'})
+     await interfacePage.keyboard.press('ArrowUp')
+    }
+   }
+   await application.evaluate(({ BaseWindow }) => BaseWindow.getAllWindows().find(window => window.isVisible()).setContentSize(1024, 720))
+  }
+  // Use a local search target to verify selected-result Enter without internet dependence.
+  await ui(`ipc.emit('settingChanged', null, 'searchEngine', {url: ${JSON.stringify(baseURL + '/search?q=%s')}})`)
+  await interfacePage.keyboard.press('ArrowDown')
+  await interfacePage.keyboard.press('Enter')
+  await waitFor(async () => (await selectedState()).selected.url === baseURL + '/search?q=Svelto%20browser', 'selected suggestion navigation')
+  assert.equal(await ui("document.getElementById('searchbar').hidden"), true)
+  pass('Enter opens selected suggestion through configured search engine')
+  await ui("ipc.emit('settingChanged', null, 'searchEngine', {name: 'DuckDuckGo'})")
+  await addressKey('l', ['meta'])
+  await interfacePage.locator('#tab-editor-input').fill('sveltoclosed')
+  await waitFor(() => ui("sveltoSearchFixture.requests.some(r => r.url.includes('sveltoclosed'))"), 'pending closed query')
+  await addressKey('Escape')
+  await waitFor(() => ui("document.getElementById('searchbar').hidden"), 'Escape closes search')
+  await waitFor(async () => application.evaluate((_electron, id) => global.getView(id).webContents.isFocused(), (await selectedState()).selected.id), 'Escape returns native page focus')
+  await ui("sveltoSearchFixture.requests.find(r => r.url.includes('sveltoclosed')).resolve({json: async () => ['sveltoclosed', ['Closed suggestion']]})")
+  await interfacePage.waitForTimeout(100)
+  assert.equal(await ui("document.querySelector('[data-plugin=searchSuggestions]').children.length"), 0)
+  assert.equal(await ui("document.getElementById('tab-editor-input').getAttribute('aria-expanded')"), 'false')
+  await addressKey('l', ['meta'])
+  await interfacePage.locator('#tab-editor-input').fill('sveltofailure')
+  await waitFor(() => ui("sveltoSearchFixture.requests.some(r => r.url.includes('sveltofailure'))"), 'failed suggestion request')
+  await ui("sveltoSearchFixture.requests.find(r => r.url.includes('sveltofailure')).reject(new Error('Offline fixture'))")
+  await interfacePage.waitForTimeout(100)
+  assert.deepEqual(await ui('sveltoSearchFixture.errors'), [])
+  await addressKey('Escape')
+  pass('Escape discards pending suggestions and offline failures are contained')
+  await addressKey('l', ['meta'])
+  await interfacePage.locator('#tab-editor-input').fill('First page')
+  await waitFor(() => ui("Array.from(document.querySelectorAll('[data-plugin=places] .searchbar-item')).some(item => item.dataset.url.endsWith('/one'))"), 'local history result')
+  await interfacePage.keyboard.press('ArrowDown')
+  if (process.env.SVELTO_CAPTURE_SEARCH) {
+   await interfacePage.waitForTimeout(250)
+   await interfacePage.screenshot({path: '/private/tmp/svelto-search-history.png'})
+  }
+  await interfacePage.keyboard.press('Enter')
+  await waitFor(async () => (await selectedState()).selected.url === baseURL + '/one', 'history result navigation')
+  pass('History suggestion opens with keyboard Enter')
+  await addressKey('l', ['meta'])
+  await interfacePage.locator('#tab-editor-input').fill('2+2')
+  await waitFor(() => ui("document.querySelector('[data-plugin=calculatorPlugin] .title')?.textContent === '4'"), 'calculator result')
+  await interfacePage.keyboard.press('ArrowDown')
+  await interfacePage.keyboard.press('Enter')
+  assert.equal(await application.evaluate(({clipboard}) => clipboard.readText()), '4')
+  if (process.env.SVELTO_CAPTURE_SEARCH) await interfacePage.screenshot({path: '/private/tmp/svelto-search-calculator.png'})
+  assert.deepEqual(await ui('sveltoSearchFixture.errors'), [])
+  await addressKey('Escape')
+  pass('Calculator result retains keyboard copy action')
+ } finally {
+  await ui("window.fetch = sveltoSearchFixture.fetch; window.removeEventListener('unhandledrejection', sveltoSearchFixture.listener); delete window.sveltoSearchFixture")
+ }
+ await navigate(baseURL + '/one')
  await application.evaluate(({ webContents }, origin) => webContents.getAllWebContents().find(contents => contents.getURL() === origin + '/one').executeJavaScript("document.querySelector('a[href=\"/two\"]').click()", true), baseURL)
  await waitFor(async () => (await selectedState()).selected.url === baseURL + '/two', 'link navigation')
  await waitFor(() => application.evaluate(({ webContents }, url) => webContents.getAllWebContents().some(contents => contents.getURL() === url && !contents.isLoading()), baseURL + '/two'), 'linked page loaded')
@@ -161,6 +274,17 @@ async function quit () {
  assert.equal((await selectedState()).selected.private, true)
  await navigate(baseURL + '/private')
  pass('Private tab navigation')
+ await ui("window.sveltoPrivateFetch = window.fetch; window.sveltoPrivateSuggestions = 0; window.fetch = (url, options) => {if (String(url).includes('ac.duckduckgo.com')) window.sveltoPrivateSuggestions++; return window.sveltoPrivateFetch(url, options)}; void 0")
+ try {
+  await addressKey('l', ['meta'])
+  await interfacePage.locator('#tab-editor-input').fill('sveltoprivatequery')
+  await interfacePage.waitForTimeout(250)
+  assert.equal(await ui('sveltoPrivateSuggestions'), 0)
+  await addressKey('Escape')
+ } finally {
+  await ui('window.fetch = sveltoPrivateFetch; delete window.sveltoPrivateFetch; delete window.sveltoPrivateSuggestions')
+ }
+ pass('Private address search sends no remote suggestion request')
  const stateBefore = (await selectedState()).state
  await quit()
  const saved = JSON.parse(fs.readFileSync(path.join(profile, 'sessionRestore.json'), 'utf8'))

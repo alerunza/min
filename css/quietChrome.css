@@ -247,3 +247,59 @@ body.mac .task-tab-item.dragging-selected { border-left-color: var(--quiet-accen
 @media (prefers-reduced-motion: reduce) {
   body.mac #task-overlay, body.mac #task-overlay * { transition: none !important; }
 }
+
+/* Svelto Quiet search: preserve plugin content and in-tab address editing. */
+body.mac #tab-editor-input::placeholder { color: var(--quiet-muted); opacity: 1; }
+body.mac #tab-editor .tab-editor-button:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: -2px; }
+body.mac #searchbar {
+  padding: 8px 24px 12px;
+  background: #f0f1ee;
+  color: #29352c;
+  border-bottom: 1px solid var(--quiet-line);
+  border-radius: 0 0 10px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  max-height: calc(100% - var(--control-space-top) - var(--navbar-height) - 24px);
+  scrollbar-gutter: stable;
+}
+body.mac.dark-theme #searchbar { background: #252726; color: #edf0ea; }
+body.mac #searchbar * { font-size: inherit; font-family: inherit; letter-spacing: normal; }
+body.mac:not(.is-ntp) #searchbar, body.mac.ntp-has-background #searchbar { box-shadow: 0 8px 18px -12px rgba(0, 0, 0, .35); }
+body.mac #searchbar .searchbar-item {
+  min-height: 40px;
+  padding: 10px 38px 10px 34px;
+  border-radius: 6px;
+  transition: none;
+}
+body.mac #searchbar .searchbar-item:hover { background: var(--quiet-hover); }
+body.mac #searchbar .searchbar-item:focus, body.mac #searchbar .searchbar-item.fakefocus {
+  background: var(--quiet-active);
+  box-shadow: inset 2px 0 var(--quiet-accent);
+}
+body.mac #searchbar .searchbar-item:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: -2px; }
+body.mac #searchbar .searchbar-item > i, body.mac #searchbar .searchbar-item .icon-image {
+  left: 11px;
+  right: auto;
+  top: 12px;
+  font-size: 15px;
+  opacity: .75;
+}
+body.mac #searchbar .searchbar-item .icon-image { opacity: 1; }
+body.mac #searchbar .searchbar-item.has-action-button:hover > i,
+body.mac #searchbar .searchbar-item.has-action-button:hover .icon-image { display: block; }
+body.mac #searchbar .searchbar-item .secondary-text { color: var(--quiet-muted); opacity: 1; padding-left: 16px; }
+body.mac #searchbar .searchbar-item .description-block { line-height: 1.4; max-height: 2.8em; margin-right: 0; }
+body.mac #searchbar .searchbar-item:focus .description-block { max-height: none; }
+body.mac #searchbar .searchbar-item .action-button { width: 28px; height: 28px; top: 6px; right: 6px; border-radius: 5px; }
+body.mac #searchbar .searchbar-item .action-button:hover, body.mac #searchbar .searchbar-item .action-button:focus { background: var(--quiet-hover); }
+body.mac #searchbar .searchbar-heading { font-size: 12px; padding: 12px 10px 6px; color: var(--quiet-muted); opacity: 1; }
+body.mac #searchbar .searchbar-floating-button, body.mac #searchbar .searchbar-shortcut,
+body.mac #searchbar .text-action-button-row button { border: 1px solid var(--quiet-line); border-radius: 6px; background: var(--quiet-active); font-size: 12px !important; }
+body.mac #searchbar .searchbar-shortcut { padding: 6px 10px; margin: 4px; }
+body.mac #searchbar .searchbar-shortcut:hover, body.mac #searchbar .searchbar-floating-button:hover { background: var(--quiet-hover); }
+body.mac #searchbar button:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: -2px; }
+@media (max-width: 650px) {
+  body.mac #searchbar { padding-inline: 8px; }
+  body.mac #searchbar .searchbar-item .title, body.mac #searchbar .searchbar-item .title.wide { max-width: 100%; }
+  body.mac #searchbar .searchbar-item .secondary-text { padding-left: 0; max-height: none; line-height: 1.4; }
+}
