@@ -1,4 +1,4 @@
-/* global getWindowFromViewContents, getTabIDFromWebContents, sendIPCToWindow */
+/* global getWindowFromViewContents, getTabIDFromWebContents, sendIPCToWindow, ipc, windows, path, app, session */
 // Modified for Svelto: attachments do not change the current page file-view state (2026-10-09).
 const currrentDownloadItems = {}
 
@@ -58,9 +58,9 @@ function downloadHandler (event, item, webContents) {
     delete currrentDownloadItems[item.getSavePath()]
     sendIPCToWindow(sourceWindow, 'download-info', {
       path: item.getSavePath(),
-      name: savePathFilename,
+      name: savePathFilename || path.basename(item.getSavePath()) || item.getFilename(),
       status: state,
-      size: { received: item.getTotalBytes(), total: item.getTotalBytes() }
+      size: { received: item.getReceivedBytes(), total: item.getTotalBytes() }
     })
   })
   return true
@@ -84,7 +84,7 @@ function listenForDownloadHeaders (ses) {
     redirectCache.push({ from: details.url, to: details.redirectURL, expiry: Date.now() + 5000 })
   })
 
-  ses.webRequest.onHeadersReceived(function (details, callback) {
+  ses.webRequest.onHeadersReceived(function (details, respond) {
     if (details.resourceType === 'mainFrame' && details.responseHeaders) {
       let sourceWindow
       if (details.webContents) {
@@ -100,7 +100,7 @@ function listenForDownloadHeaders (ses) {
 
       if (typeHeader instanceof Array && typeHeader.filter(t => t.includes('application/pdf')).length > 0 && !attachment) {
       // open in PDF viewer instead
-        callback({ cancel: false })
+        respond({ cancel: false })
         sendIPCToWindow(sourceWindow, 'openPDF', {
           url: details.url,
           tabId: null
@@ -141,7 +141,7 @@ function listenForDownloadHeaders (ses) {
         Object.entries(details.responseHeaders).filter(([key, val]) => key.toLowerCase() !== 'access-control-allow-origin' && key.toLowerCase() !== 'access-control-allow-credentials')
       )
 
-      callback({
+      respond({
         responseHeaders: {
           ...filteredHeaders,
           'Access-Control-Allow-Origin': 'min://app',
@@ -151,7 +151,7 @@ function listenForDownloadHeaders (ses) {
       return
     }
 
-    callback({ cancel: false })
+    respond({ cancel: false })
   })
 }
 

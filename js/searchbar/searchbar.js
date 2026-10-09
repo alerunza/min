@@ -39,6 +39,13 @@ var searchbar = {
     var text = searchbar.associatedInput.value
     return text.replace(text.substring(searchbar.associatedInput.selectionStart, searchbar.associatedInput.selectionEnd), '')
   },
+  isCurrentCommand: function (command, text, input) {
+    if (searchbar.associatedInput !== input) {
+      return false
+    }
+    const value = searchbar.getValue()
+    return value.split(' ')[0] === command && value.slice(command.length).trimStart() === text
+  },
   showResults: function (text, inputFlags = {}) {
     if (searchbar.associatedInput) {
       searchbarPlugins.run(text, searchbar.associatedInput, inputFlags || {})

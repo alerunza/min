@@ -1,3 +1,4 @@
+// Svelto: keep command results scoped to the query and available offline.
 var tabEditor = require('navbar/tabEditor.js')
 var settings = require('util/settings/settings.js')
 
@@ -104,6 +105,7 @@ function showBangSearchResults (text, results, input, inputFlags, limit = 5) {
       }
 
       setTimeout(function () {
+        if (searchbar.associatedInput !== input) return
         incrementBangCount(result.phrase)
 
         input.value = result.phrase + ' '
@@ -121,6 +123,7 @@ function showBangSearchResults (text, results, input, inputFlags, limit = 5) {
 }
 
 function getBangSearchResults (text, input, inputFlags) {
+  const isCurrentQuery = () => searchbar.associatedInput === input && searchbar.getValue() === text
   // if there is a space in the text, show bang search suggestions (only supported for custom bangs)
 
   if (text.indexOf(' ') !== -1) {
@@ -157,6 +160,7 @@ function getBangSearchResults (text, input, inputFlags) {
   }
 
   resultsPromise.then(function (results) {
+    if (!isCurrentQuery()) return
     if (text === '!') {
       // if we're listing all commands, limit the number of site results so that there's space to show more browser commands
       // but if there's search text, the results are capped elsewhere, and low-ranking results should be included here
@@ -180,6 +184,8 @@ function getBangSearchResults (text, input, inputFlags) {
         searchbarAutocomplete.autocomplete(input, [[results[0].phrase]])
       }
     }
+  }).catch(function () {
+    if (isCurrentQuery()) showBangSearchResults(text, searchCustomBangs(text), input, inputFlags)
   })
 }
 

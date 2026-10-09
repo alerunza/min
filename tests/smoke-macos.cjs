@@ -126,6 +126,11 @@ async function quit () {
  await navigate(baseURL + '/one')
  await waitFor(async () => (await selectedState()).selected.title === 'First page', 'first page title')
  pass('Address-bar navigation and page title')
+ // History indexing intentionally waits before saving a visit; search only after this fixture is indexed.
+ await waitFor(() => application.evaluate(({ webContents }, url) => {
+  const service = webContents.getAllWebContents().find(contents => contents.getURL().endsWith('/js/places/placesService.html'))
+  return service?.executeJavaScript(`historyInMemoryCache.some(item => item.url === ${JSON.stringify(url)})`, true)
+ }, baseURL + '/one'), 'first page indexed for history search')
  // Exercise actual keyboard input and deliberately reordered network suggestions.
  const interfacePage = application.context().pages().find(page => page.url() === 'min://app/index.html')
  async function addressKey (keyCode, modifiers = []) {

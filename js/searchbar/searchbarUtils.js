@@ -1,3 +1,4 @@
+// Svelto: collection status, named keyboard actions and safe result removal.
 var urlParser = require('util/urlParser.js')
 
 var lastItemDeletion = Date.now() // TODO get rid of this
@@ -197,6 +198,8 @@ function createItem (data) {
   if (data.showDeleteButton) {
     data.button = {
       icon: 'carbon:close',
+      label: data.deleteLabel,
+      keyboardAccessible: !!data.deleteLabel,
       fn: function () {
         data.delete(item)
         item.parentNode.removeChild(item)
@@ -207,10 +210,21 @@ function createItem (data) {
   if (data.button) {
     var button = document.createElement('button')
     button.classList.add('action-button')
-    button.classList.add('ignores-keyboard-focus') // for keyboardNavigationHelper
+    if (!data.button.keyboardAccessible) {
+      button.classList.add('ignores-keyboard-focus') // for keyboardNavigationHelper
+    }
     button.tabIndex = -1
     button.classList.add('i')
     button.classList.add(data.button.icon)
+    if (data.button.label) {
+      button.setAttribute('aria-label', data.button.label)
+      button.title = data.button.label
+    }
+    button.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.stopPropagation()
+      }
+    })
 
     button.addEventListener('click', function (e) {
       e.stopPropagation()
@@ -280,6 +294,20 @@ function createHeading (data) {
   return heading
 }
 
+function createCollectionHeader (title, count, emptyMessage) {
+  const header = document.createElement('div')
+  header.className = 'collection-header'
+  const heading = document.createElement('h2')
+  heading.textContent = title
+  header.appendChild(heading)
+  const status = document.createElement('span')
+  status.className = 'collection-status'
+  status.setAttribute('role', 'status')
+  status.textContent = count ? l('collectionResultCount').replace('%n', count) : emptyMessage
+  header.appendChild(status)
+  return header
+}
+
 // attempts to shorten a page title, removing unimportant text like the site name
 function getRealTitle (text) {
   // don't try to parse URL's
@@ -346,4 +374,4 @@ function createLazyList (scrollRoot) {
   }
 }
 
-module.exports = { createItem, createLazyList, createHeading, getRealTitle }
+module.exports = { createItem, createLazyList, createHeading, createCollectionHeader, getRealTitle }

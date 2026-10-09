@@ -1,3 +1,4 @@
+// Svelto: a delayed editor close must still belong to this address field.
 const places = require('places/places.js')
 const bookmarkEditor = require('searchbar/bookmarkEditor.js')
 const searchbar = require('searchbar/searchbar.js')
@@ -19,31 +20,37 @@ const bookmarkStar = {
   },
   onClick: function (star) {
     var tabId = star.getAttribute('data-tab')
+    const url = tabs.get(tabId).url
+    const input = searchbar.associatedInput
 
     searchbarPlugins.clearAll()
 
-    places.updateItem(tabs.get(tabId).url, {
+    places.updateItem(url, {
       isBookmarked: true,
       title: tabs.get(tabId).title // if this page is open in a private tab, the title may not be saved already, so it needs to be included here
     })
-    .then(function () {
-      star.classList.remove('carbon:star')
-      star.classList.add('carbon:star-filled')
-      star.setAttribute('aria-pressed', true)
+      .then(function () {
+        if (star.getAttribute('data-tab') !== tabId || searchbar.associatedInput !== input || !input || tabs.getSelected() !== tabId) return
+        star.classList.remove('carbon:star')
+        star.classList.add('carbon:star-filled')
+        star.setAttribute('aria-pressed', true)
 
-      var editorInsertionPoint = document.createElement('div')
-      searchbarPlugins.getContainer('simpleBookmarkTagInput').appendChild(editorInsertionPoint)
-      bookmarkEditor.show(tabs.get(tabs.getSelected()).url, editorInsertionPoint, function (newBookmark) {
-        if (!newBookmark) {
+        var editorInsertionPoint = document.createElement('div')
+        searchbarPlugins.getContainer('simpleBookmarkTagInput').appendChild(editorInsertionPoint)
+        bookmarkEditor.show(url, editorInsertionPoint, function (newBookmark) {
+          if (star.getAttribute('data-tab') !== tabId) return
+          if (!newBookmark) {
           // bookmark was deleted
-          star.classList.add('carbon:star')
-          star.classList.remove('carbon:star-filled')
-          star.setAttribute('aria-pressed', false)
-          searchbar.showResults('')
-          searchbar.associatedInput.focus()
-        }
-      }, { simplified: true, autoFocus: true })
-    })
+            star.classList.add('carbon:star')
+            star.classList.remove('carbon:star-filled')
+            star.setAttribute('aria-pressed', false)
+            if (searchbar.associatedInput) {
+              searchbar.showResults('')
+              searchbar.associatedInput.focus()
+            }
+          }
+        }, { simplified: true, autoFocus: true })
+      })
   },
   update: function (tabId, star) {
     star.setAttribute('data-tab', tabId)
@@ -58,6 +65,7 @@ const bookmarkStar = {
     // check if the page is bookmarked or not, and update the star to match
 
     places.getItem(currentURL).then(function (item) {
+      if (star.getAttribute('data-tab') !== tabId || tabs.get(tabId)?.url !== currentURL) return
       if (item && item.isBookmarked) {
         star.classList.remove('carbon:star')
         star.classList.add('carbon:star-filled')

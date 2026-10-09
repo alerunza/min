@@ -1,3 +1,4 @@
+// Svelto: isolate editor instances and persist trimmed, unique tags safely.
 var places = require('places/places.js')
 var autocomplete = require('util/autocomplete.js')
 const remoteMenu = require('remoteMenuRenderer.js')
@@ -5,10 +6,14 @@ var { ipcRenderer } = require('electron')
 
 const bookmarkEditor = {
   currentInstance: null,
+  removeBookmark: function (url) {
+    return places.updateItem(url, { isBookmarked: false, tags: [] })
+  },
   getTagElement: function (tag, selected, onClick, options = {}) {
     var el = document.createElement('button')
     el.className = 'tag'
     el.textContent = tag
+    el.tabIndex = -1
     if (selected) {
       el.classList.add('selected')
       el.setAttribute('aria-pressed', true)
@@ -23,6 +28,7 @@ const bookmarkEditor = {
       } else {
         el.classList.remove('suggested')
         el.classList.add('selected')
+        el.setAttribute('aria-pressed', true)
       }
     })
     if (options.onModify) {
@@ -82,7 +88,7 @@ const bookmarkEditor = {
                 const items = await places.getAllItems()
                 items.forEach(function (item) {
                   if (item.tags.includes(tag)) {
-                    places.deleteHistory(item.url)
+                    bookmarkEditor.removeBookmark(item.url)
                   }
                 })
                 setTimeout(function () {
@@ -97,113 +103,111 @@ const bookmarkEditor = {
     return el
   },
   render: async function (url, options = {}) {
-    bookmarkEditor.currentInstance = {}
-    bookmarkEditor.currentInstance.bookmark = await places.getItem(url)
-
-    var editor = document.createElement('div')
+    const instance = { pendingEdits: Promise.resolve() }
+    bookmarkEditor.currentInstance = instance
+    instance.bookmark = await places.getItem(url)
+    if (bookmarkEditor.currentInstance !== instance || !instance.bookmark) {
+      return null
+    }
+    const selectedTags = new Set(instance.bookmark.tags)
+    const editor = document.createElement('div')
     editor.className = 'bookmark-editor searchbar-item'
+    instance.editor = editor
 
-    if (options.simplified) {
-      editor.className += ' simplified'
+    function setTag (tag, selected) {
+      if (selected) selectedTags.add(tag)
+      else selectedTags.delete(tag)
+      const tags = Array.from(selectedTags)
+      instance.bookmark.tags = tags
+      instance.pendingEdits = instance.pendingEdits.then(() => places.updateItem(url, { tags }))
+    }
+    function finish (bookmark) {
+      editor.remove()
+      if (bookmarkEditor.currentInstance === instance) bookmarkEditor.currentInstance = null
+      if (!bookmark) instance.pendingEdits = instance.pendingEdits.then(() => bookmarkEditor.removeBookmark(url))
+      instance.pendingEdits.then(() => instance.onClose(bookmark))
+    }
+    function tagElement (tag, selected) {
+      return bookmarkEditor.getTagElement(tag, selected, () => setTag(tag, !selectedTags.has(tag)))
     }
 
+    if (options.simplified) editor.classList.add('simplified')
     if (!options.simplified) {
-      // title input
-      var title = document.createElement('span')
+      const title = document.createElement('span')
       title.className = 'title wide'
-      title.textContent = bookmarkEditor.currentInstance.bookmark.title
+      title.textContent = instance.bookmark.title
       editor.appendChild(title)
-
-      // URL
-      var URLSpan = document.createElement('div')
-      URLSpan.className = 'bookmark-url'
-      URLSpan.textContent = bookmarkEditor.currentInstance.bookmark.url
-      editor.appendChild(URLSpan)
+      const urlSpan = document.createElement('div')
+      urlSpan.className = 'bookmark-url'
+      urlSpan.textContent = instance.bookmark.url
+      editor.appendChild(urlSpan)
     }
-
-    // tag area
-    var tagArea = document.createElement('div')
+    const tagArea = document.createElement('div')
     tagArea.className = 'tag-edit-area'
     editor.appendChild(tagArea)
 
     if (!options.simplified) {
-      // save button
-      var saveButton = document.createElement('button')
+      const saveButton = document.createElement('button')
       saveButton.className = 'action-button always-visible i carbon:checkmark'
       saveButton.tabIndex = -1
+      saveButton.setAttribute('aria-label', l('bookmarkDone'))
+      saveButton.title = l('bookmarkDone')
       editor.appendChild(saveButton)
-      saveButton.addEventListener('click', function () {
-        editor.remove()
-        bookmarkEditor.currentInstance.onClose(bookmarkEditor.currentInstance.bookmark)
-        bookmarkEditor.currentInstance = null
-      })
+      saveButton.addEventListener('click', () => finish(instance.bookmark))
     }
-
-    // delete button
-    var delButton = document.createElement('button')
+    const delButton = document.createElement('button')
     delButton.className = 'action-button always-visible bookmark-delete-button i carbon:trash-can'
     delButton.tabIndex = -1
+    delButton.setAttribute('aria-label', l('bookmarkDelete'))
+    delButton.title = l('bookmarkDelete')
     editor.appendChild(delButton)
-    delButton.addEventListener('click', function () {
-      editor.remove()
-      bookmarkEditor.currentInstance.onClose(null)
-      bookmarkEditor.currentInstance = null
+    delButton.addEventListener('click', () => finish(null))
+
+    // The search group's Enter handling must not also activate the enclosing row.
+    editor.addEventListener('keydown', function (e) {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.tagName === 'BUTTON') e.stopPropagation()
     })
+    selectedTags.forEach(tag => tagArea.appendChild(tagElement(tag, true)))
 
-    var tags = {
-      selected: [],
-      suggested: []
-    }
+    places.getSuggestedTags(url).then(function (suggestions) {
+      if (bookmarkEditor.currentInstance !== instance || !editor.isConnected) return
+      Array.from(new Set(suggestions)).filter(tag => !selectedTags.has(tag)).slice(0, 3)
+        .forEach(tag => tagArea.appendChild(tagElement(tag, false)))
 
-    // show tags
-    bookmarkEditor.currentInstance.bookmark.tags.forEach(function (tag) {
-      tagArea.appendChild(bookmarkEditor.getTagElement(tag, true, function () {
-        places.toggleTag(bookmarkEditor.currentInstance.bookmark.url, tag)
-      }))
-    })
-    tags.selected = bookmarkEditor.currentInstance.bookmark.tags
-
-    places.getSuggestedTags(bookmarkEditor.currentInstance.bookmark.url).then(function (suggestions) {
-      tags.suggested = tags.suggested.concat(suggestions)
-
-      tags.suggested.filter((tag, idx) => {
-        return tags.suggested.indexOf(tag) === idx && !tags.selected.includes(tag)
-      }).slice(0, 3).forEach(function (tag, idx) {
-        tagArea.appendChild(bookmarkEditor.getTagElement(tag, false, function () {
-          places.toggleTag(bookmarkEditor.currentInstance.bookmark.url, tag)
-        }))
-      })
-      // add option for new tag
-      var newTagInput = document.createElement('input')
+      const newTagInput = document.createElement('input')
       newTagInput.className = 'tag-input'
       newTagInput.placeholder = l('bookmarksAddTag')
+      newTagInput.setAttribute('aria-label', l('bookmarksAddTag'))
       newTagInput.spellcheck = false
       tagArea.appendChild(newTagInput)
 
-      newTagInput.addEventListener('keypress', function (e) {
-        if (e.keyCode !== 8 && e.keyCode !== 13) {
-          places.getAllTagsRanked(bookmarkEditor.currentInstance.bookmark.url).then(function (results) {
-            autocomplete.autocomplete(newTagInput, results.map(r => [r.tag]))
-          })
+      function commitTag () {
+        const tag = newTagInput.value.trim().replace(/\s+/g, '-')
+        if (tag && !selectedTags.has(tag)) {
+          setTag(tag, true)
+          tagArea.insertBefore(tagElement(tag, true), tagArea.firstElementChild)
         }
-      })
-
-      newTagInput.addEventListener('change', function () {
-        var val = this.value
-        if (!tags.selected.includes(val)) {
-          places.toggleTag(bookmarkEditor.currentInstance.bookmark.url, val)
-          tagArea.insertBefore(bookmarkEditor.getTagElement(val, true, function () {
-            places.toggleTag(bookmarkEditor.currentInstance.bookmark.url, val)
-          }), tagArea.firstElementChild)
-        }
-        this.value = ''
-      })
-
-      if (options.autoFocus) {
-        newTagInput.focus()
+        newTagInput.value = ''
       }
+      newTagInput.addEventListener('input', function (e) {
+        if (e.isComposing || (e.inputType || '').includes('delete')) return
+        const value = newTagInput.value
+        places.getAllTagsRanked(url).then(function (results) {
+          if (bookmarkEditor.currentInstance === instance && newTagInput.isConnected && newTagInput.value === value) {
+            autocomplete.autocomplete(newTagInput, results.map(r => [r.tag]))
+          }
+        })
+      })
+      newTagInput.addEventListener('change', commitTag)
+      newTagInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.isComposing) {
+          e.preventDefault()
+          e.stopPropagation()
+          commitTag()
+        }
+      })
+      if (options.autoFocus) newTagInput.focus()
     })
-
     return editor
   },
   show: function (url, replaceItem, onClose, options) {
@@ -211,16 +215,17 @@ const bookmarkEditor = {
       if (bookmarkEditor.currentInstance.editor && bookmarkEditor.currentInstance.editor.parentNode) {
         bookmarkEditor.currentInstance.editor.remove()
       }
-      if (bookmarkEditor.currentInstance.onClose) {
-        bookmarkEditor.currentInstance.onClose(bookmarkEditor.currentInstance.bookmark)
-      }
+      if (bookmarkEditor.currentInstance.replaceItem?.isConnected) bookmarkEditor.currentInstance.replaceItem.hidden = false
       bookmarkEditor.currentInstance = null
     }
-    bookmarkEditor.render(url, options).then(function (editor) {
+    const rendering = bookmarkEditor.render(url, options)
+    const instance = bookmarkEditor.currentInstance
+    rendering.then(function (editor) {
+      if (!editor || bookmarkEditor.currentInstance !== instance || !replaceItem.isConnected) return
       replaceItem.hidden = true
       replaceItem.parentNode.insertBefore(editor, replaceItem)
-      bookmarkEditor.currentInstance.editor = editor
-      bookmarkEditor.currentInstance.onClose = onClose
+      instance.onClose = onClose
+      instance.replaceItem = replaceItem
     })
   }
 }

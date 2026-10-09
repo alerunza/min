@@ -303,3 +303,52 @@ body.mac #searchbar button:focus-visible { outline: 2px solid var(--quiet-accent
   body.mac #searchbar .searchbar-item .title, body.mac #searchbar .searchbar-item .title.wide { max-width: 100%; }
   body.mac #searchbar .searchbar-item .secondary-text { padding-left: 0; max-height: none; line-height: 1.4; }
 }
+
+/* Svelto Quiet collections retain the search panel and tagged bookmark model. */
+body.mac #searchbar .collection-header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 6px 10px 10px; border-bottom: 1px solid var(--quiet-line); margin-bottom: 4px; }
+body.mac #searchbar .collection-header h2 { font-size: 17px; font-weight: 600; }
+body.mac #searchbar .collection-status { color: var(--quiet-muted); font-size: 12px; }
+body.mac #searchbar .collection-header .searchbar-floating-button { position: static; margin-left: auto; padding: 6px 10px; opacity: 1; }
+body.mac #searchbar .history-item .action-button, body.mac #searchbar .bookmark-item .action-button { opacity: .75; }
+body.mac #searchbar .history-item .action-button:hover, body.mac #searchbar .bookmark-item .action-button:hover { opacity: 1; }
+body.mac #bookmark-tag-bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 10px; }
+body.mac #searchbar .tag { margin: 0; padding: 5px 9px; border: 1px solid var(--quiet-line); border-radius: 6px; background: var(--quiet-active); opacity: 1; font-size: 12px; }
+body.mac #searchbar .tag.suggested { background: transparent; color: var(--quiet-muted); }
+body.mac #searchbar .tag.selected { color: var(--quiet-accent); border-color: var(--quiet-accent); }
+body.mac #searchbar .tag:hover, body.mac #searchbar .tag:focus { background: var(--quiet-hover); }
+body.mac #searchbar .bookmark-editor:not(.simplified) { padding: 12px 44px 12px 12px; border: 1px solid var(--quiet-line); border-radius: 8px; box-shadow: none; background: var(--quiet-active) !important; margin-block: 6px; }
+body.mac #searchbar .bookmark-editor .title { max-width: 100%; white-space: normal; }
+body.mac #searchbar .bookmark-editor .bookmark-url { color: var(--quiet-muted); opacity: 1; overflow-wrap: anywhere; font-size: 12px; margin: 4px 0 10px; }
+body.mac #searchbar .bookmark-editor .tag-edit-area { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+body.mac #searchbar .tag-edit-area .tag-input { margin: 0; width: 180px; max-width: 100%; padding: 6px 9px; border: 1px solid var(--quiet-line); border-radius: 6px; background: var(--quiet-active); color: inherit; opacity: 1; }
+body.mac #searchbar .tag-input::placeholder { color: var(--quiet-muted); opacity: 1; }
+body.mac #searchbar .tag-input:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: -2px; }
+body.mac #searchbar .bookmark-editor .bookmark-delete-button { top: auto; bottom: 8px; }
+body.mac #searchbar .bookmark-editor.simplified .bookmark-delete-button { margin-left: 0; }
+
+/* The 40 px download shelf remains synchronized with webview margins. */
+body.mac #download-bar { height: 40px; align-items: center; background: #f0f1ee; color: #29352c; border-color: var(--quiet-line); padding-inline: 8px; gap: 8px; }
+body.mac.dark-mode #download-bar { background: #252726; color: #edf0ea; }
+body.mac #download-bar * { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; letter-spacing: normal; }
+body.mac #download-container { height: 39px; align-items: center; gap: 6px; }
+body.mac .download-item { height: 32px; flex: 0 0 260px; width: 260px; min-width: 200px; max-width: 300px; padding: 3px 38px 3px 9px; border: 1px solid var(--quiet-line); border-radius: 6px; line-height: 1.2; }
+body.mac .download-item:hover, body.mac .download-item.completed:active { background: var(--quiet-hover); }
+body.mac #download-bar .download-file-button { display: block; width: 100%; line-height: 1.2; }
+body.mac #download-bar .download-file-button:hover { background: transparent; }
+body.mac #download-bar .download-title { font-size: 12px; opacity: 1; }
+body.mac #download-bar .download-info { font-size: 10px; line-height: 12px; margin: 0; padding: 0; color: var(--quiet-muted); opacity: 1; }
+body.mac .download-item .download-info.detailed { display: none; }
+body.mac .download-item:hover .download-info:not(.detailed) { display: none; }
+body.mac .download-item:hover .download-info.detailed { display: block; }
+body.mac .download-item .download-info:not(.detailed) { display: block; }
+body.mac .download-progress { top: auto; bottom: 0; left: 0; width: 100%; height: 2px; margin: 0; background: var(--quiet-accent); border-radius: 0; transition: transform .2s; }
+body.mac .download-progress.indeterminate { opacity: .45; background: repeating-linear-gradient(90deg, var(--quiet-accent) 0 8px, transparent 8px 12px); }
+body.mac .download-action-button { right: 5px; width: 24px; height: 24px; top: 3px; font-size: 14px; border-radius: 4px; opacity: .85; }
+body.mac #download-close-button { width: 26px; height: 26px; margin: 0; border-radius: 5px; font-size: 16px; flex-shrink: 0; }
+body.mac #download-bar button:hover { background: var(--quiet-hover); }
+body.mac #download-bar button:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: -2px; }
+body.mac #download-bar .open-failed .download-info { white-space: normal; }
+@media (max-width: 650px) {
+  body.mac #searchbar .collection-header { gap: 6px 10px; }
+  body.mac #searchbar .collection-header .searchbar-floating-button { margin-left: 0; }
+}

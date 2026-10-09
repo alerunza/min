@@ -84,7 +84,8 @@
     "updateHttpsList": "node ./ext/httpsUpgrade/updateHttpsList.js",
     "updateSuffixes": "node ./ext/publicSuffixes/updateSuffixes.js",
     "lint": "prettier --write **/**/*.css **/**/*.md **/**/*.html **/**/*.json && standard --fix js/**/*.js main/*.js | snazzy",
-    "test:smoke": "node tests/smoke-macos.cjs"
+    "test:smoke": "node tests/smoke-macos.cjs",
+    "test:collections": "node tests/smoke-collections-macos.cjs"
   },
   "repository": {
     "type": "git",

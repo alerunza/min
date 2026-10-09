@@ -1,3 +1,4 @@
+// Svelto: collection status, named edit actions and query-scoped bookmark replies.
 var searchbar = require('searchbar/searchbar.js')
 var searchbarPlugins = require('searchbar/searchbarPlugins.js')
 var searchbarUtils = require('searchbar/searchbarUtils.js')
@@ -37,17 +38,14 @@ function itemMatchesTags (item, tags) {
 }
 
 function showBookmarkEditor (url, item) {
+  const input = searchbar.associatedInput
+  const query = searchbar.getValue()
   bookmarkEditor.show(url, item, function (newBookmark) {
-    if (newBookmark) {
-      if (item.parentNode) {
-        // item could be detached from the DOM if the searchbar is closed
-        item.parentNode.replaceChild(searchbarUtils.createItem(getBookmarkListItemData(newBookmark)), item)
-      }
-    } else {
-      places.deleteHistory(url)
-      item.remove()
+    if (searchbar.associatedInput === input && searchbar.getValue() === query) {
+      searchbar.showResults(query)
+      input.focus()
     }
-  })
+  }, { autoFocus: true })
 }
 
 function getBookmarkListItemData (result, focus) {
@@ -60,10 +58,16 @@ function getBookmarkListItemData (result, focus) {
     },
     classList: ['bookmark-item'],
     delete: function () {
-      places.deleteHistory(result.url)
+      const input = searchbar.associatedInput
+      const query = searchbar.getValue()
+      bookmarkEditor.removeBookmark(result.url).then(function () {
+        if (searchbar.associatedInput === input && searchbar.getValue() === query) searchbar.showResults(query)
+      })
     },
     button: {
       icon: 'carbon:edit',
+      label: l('bookmarkEdit'),
+      keyboardAccessible: true,
       fn: function (el) {
         showBookmarkEditor(result.url, el.parentNode)
       }
@@ -87,7 +91,13 @@ const bookmarkManager = {
     })
     const suggestedTags = await places.autocompleteTags(parsedText.tags)
 
+    if (!searchbar.isCurrentCommand('!bookmarks', text, input)) {
+      return
+    }
+
     searchbarPlugins.reset('bangs')
+    const matchingResults = results.filter(result => itemMatchesTags(result, parsedText.tags))
+    container.appendChild(searchbarUtils.createCollectionHeader(l('appMenuBookmarks'), matchingResults.length, l(text ? 'bookmarksNoMatches' : 'bookmarksEmpty')))
 
     var tagBar = document.createElement('div')
     tagBar.id = 'bookmark-tag-bar'
@@ -127,14 +137,7 @@ const bookmarkManager = {
 
     var lastRelativeDate = '' // used to generate headings
 
-    results
-      .filter(function (result) {
-        if (itemMatchesTags(result, parsedText.tags)) {
-          return true
-        } else {
-          return false
-        }
-      })
+    matchingResults
       .sort(function (a, b) {
         // order by last visit
         return b.lastVisit - a.lastVisit
@@ -166,6 +169,10 @@ const bookmarkManager = {
 
     if (parsedText.tags.length > 0) {
       let suggestedResults = await places.getSuggestedItemsForTags(parsedText.tags)
+
+      if (!searchbar.isCurrentCommand('!bookmarks', text, input)) {
+        return
+      }
 
       suggestedResults = suggestedResults.filter(res => !displayedURLset.includes(res.url))
       if (suggestedResults.length === 0) {
