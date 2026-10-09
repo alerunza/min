@@ -49,6 +49,16 @@ Reading QA records the existing sandbox-blocked preload messages from Reader fra
 
 Keep Electron/Chromium during this iteration. A SwiftUI/WebKit rewrite is a separate architectural decision with web compatibility and Windows implications.
 
+## Pending manual verification
+
+Record the app commit, macOS version/architecture, reproduction steps and result for each check. The 61 automated checks remain the baseline; controlled print/chooser responses do not close these items.
+
+- [ ] Print real Reader articles and PDFs: page order, margins/scaling, multi-page output, cancelling the macOS dialog and returning to a usable preview.
+- [ ] Verify PDF compatibility with password-protected documents, editable forms, embedded fonts, annotations/links and large documents. Record unsupported behavior and resource usage rather than treating fixture success as complete PDF coverage.
+- [ ] Audit VoiceOver across tabs/address suggestions, Tasks, Preferences, history/bookmarks, downloads, Reader and PDF: accessible names, reading order, selected/expanded states and focus restoration.
+- [ ] Exercise native file dialogs for background selection, uploads and saving downloads, including cancellation. Verify actual file opening and Show in Finder; automated shell/Finder dispatch checks currently use stubs.
+- [ ] Verify Developer ID signing, notarization and Gatekeeper on a clean Mac before public distribution. The current ZIP has a verified ad hoc signature and is not notarized; distribution setup is tracked below.
+
 ## macOS reliability and technical foundation
 
 - [ ] Reproduce and classify the 55 candidate reports in MACOS_BACKLOG: current bugs, duplicates, upstream fixes, feature requests or external limits.
