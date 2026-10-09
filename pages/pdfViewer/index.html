@@ -3,38 +3,45 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="theme-color" id="meta-theme" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="script-src 'self'"
-    />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self'" />
 
+    <link
+      rel="stylesheet"
+      href="../../node_modules/pdfjs-dist/web/pdf_viewer.css"
+    />
     <link rel="stylesheet" href="viewer.css" />
     <link rel="stylesheet" href="../../ext/icons/iconfont.css" />
     <link rel="stylesheet" href="../settingsDropdown.css" />
+    <link rel="stylesheet" href="../quietReading.css" />
   </head>
 
   <body>
     <div id="progress-bar" class="viewer-ui"></div>
 
-    <div class="side-gutter" id="side-gutter-left">
+    <header
+      id="pdf-toolbar"
+      class="viewer-ui"
+      role="toolbar"
+      aria-label="PDF controls"
+    >
       <div
         id="page-counter"
-        class="viewer-ui hidden"
+        class="viewer-ui"
         data-string="PDFPageCounter"
         data-allowHTML
       ></div>
-    </div>
-    <div class="side-gutter" id="side-gutter-right">
+
       <button
         id="download-button"
-        class="i carbon:download viewer-ui hidden"
+        class="i carbon:download viewer-ui"
+        data-label="PDFDownload"
       ></button>
 
       <button
-      id="settings-button"
-      class="i carbon:settings-adjust viewer-ui hidden"
-      data-label="viewSettings"
-    ></button>
+        id="settings-button"
+        class="i carbon:settings-adjust viewer-ui"
+        data-label="viewSettings"
+      ></button>
 
       <div id="settings-dropdown" class="viewer-ui" hidden>
         <div class="setting-section theme-circles">
@@ -61,12 +68,20 @@
           ></label>
         </div>
       </div>
-    </div>
+    </header>
+    <section id="pdf-error" role="alert" hidden>
+      <h1 data-string="PDFLoadError"></h1>
+      <p data-string="PDFLoadErrorDetail"></p>
+      <button id="pdf-retry" data-string="PDFRetry"></button>
+      <button id="pdf-error-download" data-string="PDFDownload"></button>
+    </section>
+    <main id="pdf-pages" class="pdfViewer" aria-busy="true"></main>
 
     <script src="../../dist/localization.build.js"></script>
     <script src="../../js/util/settings/settingsContent.js"></script>
     <script src="../../js/util/theme.js"></script>
     <script type="module" src="viewer.js"></script>
+    <script src="../readingControls.js"></script>
     <script src="pdfThemeSelector.js"></script>
   </body>
 </html>

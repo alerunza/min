@@ -1,23 +1,8 @@
+// Svelto: expose the selected appearance to assistive technology.
 var settingsButton = document.getElementById('settings-button')
 var settingsDropdown = document.getElementById('settings-dropdown')
 var invertSection = document.getElementById('invert-pdf-section')
 var invertCheckbox = document.getElementById('invert-pdf-checkbox')
-
-settingsButton.addEventListener('click', function () {
-  settingsDropdown.hidden = !settingsDropdown.hidden
-  if (settingsDropdown.hidden) {
-    settingsButton.classList.remove('force-visible')
-  } else {
-    settingsButton.classList.add('force-visible')
-  }
-})
-
-document.addEventListener('click', function (e) {
-  if (!settingsDropdown.contains(e.target) && e.target !== settingsButton) {
-    settingsDropdown.hidden = true
-    settingsButton.classList.remove('force-visible')
-  }
-})
 
 // Most of this is similar to readerThemeSelector
 
@@ -26,9 +11,9 @@ var metaThemeElement = document.getElementById('meta-theme')
 var themeSelectors = document.querySelectorAll('.theme-circle')
 
 var metaThemeValues = {
-  light: '#fff',
-  dark: 'rgb(36, 41, 47)',
-  sepia: 'rgb(247, 231, 199)'
+  light: '#fffefa',
+  dark: '#252726',
+  sepia: '#f5ecd9'
 }
 
 function isNight () {
@@ -50,6 +35,7 @@ themeSelectors.forEach(function (el) {
 
 function setViewerTheme (theme) {
   themeSelectors.forEach(function (el) {
+    el.setAttribute('aria-pressed', String(el.getAttribute('data-theme') === theme))
     if (el.getAttribute('data-theme') === theme) {
       el.classList.add('selected')
     } else {

@@ -1,3 +1,5 @@
+/* globals ipc */
+// Svelto: address PDF actions to their owning tab; await searchable text when requested.
 /* handles viewing pdf files using pdf.js. Recieves events from main.js will-download */
 
 const webviews = require('webviews.js')
@@ -16,28 +18,28 @@ const PDFViewer = {
       throw new Error("attempting to print in a tab that isn't a PDF viewer")
     }
 
-    webviews.callAsync(tabs.getSelected(), 'executeJavaScript', 'parentProcessActions.printPDF()')
+    webviews.callAsync(viewerTabId, 'executeJavaScript', 'parentProcessActions.printPDF()')
   },
   savePDF: function (viewerTabId) {
     if (!PDFViewer.isPDFViewer(viewerTabId)) {
       throw new Error("attempting to save in a tab that isn't a PDF viewer")
     }
 
-    webviews.callAsync(tabs.getSelected(), 'executeJavaScript', 'parentProcessActions.downloadPDF()')
+    webviews.callAsync(viewerTabId, 'executeJavaScript', 'parentProcessActions.downloadPDF()')
   },
-  startFindInPage: function (viewerTabId) {
+  startFindInPage: function (viewerTabId, callback) {
     if (!PDFViewer.isPDFViewer(viewerTabId)) {
       throw new Error("attempting to call startFindInPage in a tab that isn't a PDF viewer")
     }
 
-    webviews.callAsync(tabs.getSelected(), 'executeJavaScript', 'parentProcessActions.startFindInPage()')
+    webviews.callAsync(viewerTabId, 'executeJavaScript', 'parentProcessActions.startFindInPage()', callback)
   },
   endFindInPage: function (viewerTabId) {
     if (!PDFViewer.isPDFViewer(viewerTabId)) {
       throw new Error("attempting to call endFindInPage in a tab that isn't a PDF viewer")
     }
 
-    webviews.callAsync(tabs.getSelected(), 'executeJavaScript', 'parentProcessActions.endFindInPage()')
+    webviews.callAsync(viewerTabId, 'executeJavaScript', 'parentProcessActions.endFindInPage()')
   },
   handlePDFOpenEvent: function (event, data) {
     if (!data.tabId) {

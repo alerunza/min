@@ -177,11 +177,13 @@
         <i id="rightArrow" class="i carbon:chevron-right"></i>
       </div>
       <img id="webview-placeholder" hidden aria-hidden="true" />
-      <div id="ntp-content">
-          <img id="ntp-background" hidden>
+      <div id="ntp-content" inert aria-hidden="true">
+          <img id="ntp-background" alt="" hidden>
+          <div id="ntp-welcome"><h1>Svelto</h1><p data-string="newTabWelcome"></p></div>
+          <p id="ntp-background-error" role="alert" hidden></p>
           <div id="ntp-background-controls">
-            <button id="ntp-image-remove"><i class="i carbon:trash-can"></i></button>
-            <button id="ntp-image-picker"><i class="i carbon:camera"></i></button>
+            <button id="ntp-image-remove" data-label="removeTabBackground" hidden><i class="i carbon:trash-can"></i></button>
+            <button id="ntp-image-picker" data-label="chooseTabBackground"><i class="i carbon:camera"></i></button>
           </div>
       </div>
     </div>

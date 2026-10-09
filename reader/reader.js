@@ -1,10 +1,13 @@
+// Svelto: reliable Reader sizing, text headers and keyboard return navigation.
 /* Back button */
 
 var backbutton = document.getElementById('backtoarticle-link')
 var articleURL = new URLSearchParams(window.location.search).get('url')
 var articleLocation = new URL(articleURL)
 
+backbutton.href = articleURL
 backbutton.addEventListener('click', function (e) {
+  e.preventDefault()
   // there's likely a problem with reader view on this page, so don't auto-redirect to it in the future
   readerDecision.setURLStatus(articleURL, false)
 
@@ -44,23 +47,6 @@ autoRedirectNo.addEventListener('click', function () {
 var settingsButton = document.getElementById('settings-button')
 var settingsDropdown = document.getElementById('settings-dropdown')
 
-settingsButton.addEventListener('click', function () {
-  settingsDropdown.hidden = !settingsDropdown.hidden
-})
-
-window.addEventListener('blur', function () {
-  if (document.activeElement.tagName === 'IFRAME') {
-    // clicked on reader frame
-    settingsDropdown.hidden = true
-  }
-})
-
-document.addEventListener('click', function (e) {
-  if (!settingsDropdown.contains(e.target) && e.target !== settingsButton) {
-    settingsDropdown.hidden = true
-  }
-})
-
 var autoReaderCheckbox = document.getElementById('auto-reader-checkbox')
 
 autoReaderCheckbox.addEventListener('change', function () {
@@ -78,10 +64,12 @@ function extractAndShowNavigation (doc) {
 
   var siteIconLink = document.createElement('a')
   siteIconLink.className = 'site-icon-link'
+  siteIconLink.setAttribute('aria-label', articleLocation.hostname)
   siteIconLink.href = articleLocation.protocol + '//' + articleLocation.host
 
   var siteIcon = document.createElement('img')
   siteIcon.className = 'site-icon'
+  siteIcon.alt = ''
   siteIcon.src = articleLocation.protocol + '//' + articleLocation.host + '/favicon.ico'
   siteIconLink.appendChild(siteIcon)
   navLinksContainer.appendChild(siteIconLink)
@@ -100,7 +88,7 @@ function extractAndShowNavigation (doc) {
       .filter(el => {
         let n = el
         while (n) {
-          if (n.className.includes('social')) {
+          if (String(n.className).includes('social')) {
             return false
           }
           n = n.parentElement
@@ -204,11 +192,17 @@ function setReaderFrameSize () {
   rframe.height = (rframe.contentDocument.body.querySelector('.reader-main').scrollHeight * 1.01) + 'px'
 }
 
+function escapeReaderText (text) {
+  var span = document.createElement('span')
+  span.textContent = text
+  return span.innerHTML
+}
+
 function startReaderView (article, date) {
-  var readerContent = "<link rel='stylesheet' href='readerContent.css'>"
+  var readerContent = "<!doctype html><html><head><meta charset='utf-8'><link rel='stylesheet' href='readerContent.css'></head><body class='" + (document.body.classList.contains('mac') ? 'mac' : '') + "' theme='" + (document.body.getAttribute('theme') || 'light') + "'>"
 
   if (!article) { // we couln't parse an article
-    readerContent += "<div class='reader-main'><em>No article found.</em></div>"
+    readerContent += "<div class='reader-main'><em>" + escapeReaderText(l('readerEmpty')) + "</em></div>"
   } else {
     if (article.title) {
       document.title = article.title
@@ -218,7 +212,7 @@ function startReaderView (article, date) {
 
     var readerDomain = articleLocation.hostname
 
-    readerContent += "<div class='reader-main' domain='" + readerDomain + "'>" + "<h1 class='article-title'>" + (article.title || '') + '</h1>'
+    readerContent += "<div class='reader-main' domain='" + readerDomain + "'>" + "<h1 class='article-title'>" + escapeReaderText(article.title || '') + '</h1>'
 
     if (article.publishedTime) {
       try {
@@ -229,7 +223,7 @@ function startReaderView (article, date) {
     }
 
     if (article.byline || date) {
-      readerContent += "<h2 class='article-authors'>" + (article.byline ? article.byline : '') + (date ? ' (' + date + ')' : '') + '</h2>'
+      readerContent += "<h2 class='article-authors'>" + escapeReaderText((article.byline || '') + (date ? ' (' + date + ')' : '')) + '</h2>'
     }
 
     readerContent += article.content + '</div>'
@@ -237,8 +231,9 @@ function startReaderView (article, date) {
 
   window.rframe = document.createElement('iframe')
   rframe.classList.add('reader-frame')
+  rframe.title = document.title || 'Reader'
   rframe.sandbox = 'allow-same-origin allow-top-navigation allow-modals'
-  rframe.srcdoc = readerContent
+  rframe.srcdoc = readerContent + '</body></html>'
 
   // set an initial height equal to the available space in the window
   rframe.height = window.innerHeight - 68
@@ -263,6 +258,8 @@ function startReaderView (article, date) {
       }
     }
 
+    rframe.contentDocument.body.classList.toggle('mac', document.body.classList.contains('mac'))
+    new ResizeObserver(setReaderFrameSize).observe(rframe.contentDocument.querySelector('.reader-main'))
     setReaderTheme()
     requestAnimationFrame(function () {
       setReaderFrameSize()
@@ -361,7 +358,6 @@ function processArticle (data) {
     var date = extractDate(doc)
 
     var article = new Readability(doc).parse()
-    console.log(article)
     startReaderView(article, date)
 
     if (article) {
@@ -384,6 +380,7 @@ fetch(articleURL, {
     But sometimes it's not - example https://github.com/minbrowser/min/issues/1197
     So manually parse the content-type header and then decode based on that
      */
+    if (!response.ok) throw new Error('Article request failed: ' + response.status)
     var charset = 'utf-8'
     for (var header of response.headers.entries()) {
       if (header[0].toLowerCase() === 'content-type') {
@@ -405,7 +402,7 @@ fetch(articleURL, {
     console.warn('request failed with error', data)
 
     startReaderView({
-      content: '<em>Failed to load article.</em>'
+      content: '<p role="alert">' + escapeReaderText(l('readerLoadError')) + '</p>'
     })
   })
 

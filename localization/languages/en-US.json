@@ -262,6 +262,17 @@
     "tabMenuNewWindow": "Move Tab to New Window",
     "tabMenuReload": "Reload",
     /* PDF Viewer */
+    "newTabWelcome": "A little space for your next idea.",
+    "chooseTabBackground": "Choose a background image",
+    "removeTabBackground": "Remove background image",
+    "tabBackgroundError": "Could not update the background. Try another image.",
+    "PDFDownload": "Download PDF",
+    "PDFPageNumber": "Page number",
+    "PDFLoadError": "Could not open this PDF.",
+    "PDFLoadErrorDetail": "Try again, or download the file to open it in another app.",
+    "PDFRetry": "Try again",
+    "readerLoadError": "Could not load this article.",
+    "readerEmpty": "No article found on this page.",
     "PDFInvertPage": "Invert page colors",
     "PDFPageCounter": {
       "unsafeHTML": "page <input type='text'/> of <span id='total'></span>"
