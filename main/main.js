@@ -523,6 +523,12 @@ ipc.on('tab-state-change', function(e, events) {
   })
 })
 
+// One renderer checkpoints the synchronized state even when the app is in the background.
+ipc.on('is-session-save-owner', function (event) {
+  const owner = windows.windowFromContents(event.sender)
+  event.returnValue = !!owner && owner.win === windows.getCurrent()
+})
+
 ipc.on('request-tab-state', function(e) {
   const otherWindow = windows.getAll().find(w => getWindowWebContents(w).id !== e.sender.id)
   if (!otherWindow) {

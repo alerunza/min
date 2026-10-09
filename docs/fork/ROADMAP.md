@@ -54,7 +54,7 @@ Keep Electron/Chromium during this iteration. A SwiftUI/WebKit rewrite is a sepa
 
 ## Pending manual verification
 
-Record the app commit, macOS version/architecture, reproduction steps and result for each check. The automated baseline is 86 checks: 61 existing packaged regressions, 11 permission/file packaged checks and 14 permission-policy unit checks. Controlled print/chooser responses and fake media devices do not close these items.
+Record the app commit, macOS version/architecture, reproduction steps and result for each check. The automated baseline is 101 checks: 61 existing packaged regressions, 11 permission/file packaged checks, 14 permission-policy unit checks and 15 session checks. Controlled print/chooser responses and fake media devices do not close these items.
 
 - [ ] Print real Reader articles and PDFs: page order, margins/scaling, multi-page output, cancelling the macOS dialog and returning to a usable preview.
 - [ ] Verify PDF compatibility with password-protected documents, editable forms, embedded fonts, annotations/links and large documents. Record unsupported behavior and resource usage rather than treating fixture success as complete PDF coverage.
@@ -67,7 +67,8 @@ Record the app commit, macOS version/architecture, reproduction steps and result
 
 - [ ] Reproduce and classify the 55 candidate reports in MACOS_BACKLOG: current bugs, duplicates, upstream fixes, feature requests or external limits.
 - [ ] Fix remaining crashes and data-loss risks with reproducible regression checks.
-- [ ] Verify crash/update recovery and long sessions with many tabs; the two-window interaction baseline is verified.
+- [x] Verify abrupt main-process termination/relaunch with 48 tabs in three named Tasks, two-window synchronization, background checkpoints, private exclusion, native close/quit and damaged snapshot recovery. Preserve tab order/IDs, selected tabs, mute states, Task names/collapse state and closed-tab history.
+- [ ] Extend recovery verification to renderer/GPU failures, update interruption, full-disk/power-loss behavior and multi-hour sessions on real sites. The bounded fixture test does not establish long-session or resource stability.
 - [ ] Investigate intermittent startup/debugger failures seen under Playwright on Electron 43.4.1/macOS 27 (including an Electron Framework inspector/libuv native crash). Read-only polling retries a lost inspector promise; actions are never retried automatically. Chromium GPU/deprecation warnings remain under investigation.
 - [ ] Verify camera, microphone, screen sharing, permissions, uploads, printing, PDFs and file opening.
 - [ ] Check external links, default-browser handling, login flows, password-manager integrations and commonly used sites.
@@ -117,3 +118,7 @@ These remain proposals rather than committed features: pinned tabs, better tab s
 - [Selected UI and alternatives](../design/README.md)
 
 Permission/file QA: `npm run test:permissions` uses a disposable profile, two localhost origins and fake media devices. No physical device or screen is captured. Upload bytes and saved HTML are real; chooser responses are controlled. Native screen selection remains manual. The three fully linted permission/menu modules have zero Standard diagnostics; `tabBar.js` retains two pre-existing diagnostics. Electron system picker API: [official session documentation](https://www.electronjs.org/docs/latest/api/session#sessetdisplaymediarequesthandlerhandler-opts).
+
+Session QA: `npm run test:sessions` adds seven snapshot-store checks and eight packaged macOS checks (15 total). Saves are coalesced on state changes with a 250 ms timer; one last-focused window owns checkpoints even when the app is unfocused. Atomic synchronous writes avoid older queued writes replacing a quit snapshot, keep one valid previous generation, and leave the save cache unchanged after a failure. Restore validates task/tab structure and IDs before populating UI; invalid primary data is archived, a valid previous generation restores automatically, and two invalid generations open the existing explanation. Reset retains UI, synchronization and checkpoint listeners. A crash can still lose changes since the last completed checkpoint; these tests simulate SIGKILL, not a power loss, hardware fault or update.
+
+The final regression run also had one collections relaunch abort with the Electron process closed (no current crash report was available). The complete suite was rerun; this event remains part of the open runtime/debugger investigation, not a fixed crash claim.
