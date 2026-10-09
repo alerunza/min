@@ -1,3 +1,4 @@
+// Modified for Svelto: Quiet macOS defaults; explicit site-color preference remains supported.
 var webviews = require('webviews.js')
 var settings = require('util/settings/settings.js')
 
@@ -10,8 +11,8 @@ const textColorNN = require('ext/textColor/textColor.js')
 
 const defaultColors = {
   private: ['rgb(58, 44, 99)', 'white'],
-  lightMode: ['rgb(255, 255, 255)', 'black'],
-  darkMode: ['rgb(33, 37, 43)', 'white']
+  lightMode: platformType === 'mac' ? ['rgb(240, 241, 238)', '#26302a'] : ['rgb(255, 255, 255)', 'black'],
+  darkMode: platformType === 'mac' ? ['rgb(37, 39, 38)', '#e5eae5'] : ['rgb(33, 37, 43)', 'white']
 }
 
 function getHours () {
@@ -168,7 +169,7 @@ function setColor (bg, fg, isLowContrast) {
     textElements[i].style.color = fg
   }
 
-  if (fg === 'white') {
+  if (fg === 'white' || fg === '#e5eae5') {
     document.body.classList.add('dark-theme')
   } else {
     document.body.classList.remove('dark-theme')
@@ -181,7 +182,7 @@ function setColor (bg, fg, isLowContrast) {
 }
 
 const tabColor = {
-  useSiteTheme: true,
+  useSiteTheme: platformType !== 'mac',
   initialize: function () {
     webviews.bindEvent('page-favicon-updated', function (tabId, favicons) {
       tabColor.updateFromImage(favicons, tabId, function () {
@@ -288,6 +289,10 @@ const tabColor = {
     const tab = tabs.get(tabs.getSelected())
 
     // private tabs have their own color scheme
+    if (tab.private && platformType === 'mac') {
+      const colors = window.isDarkMode ? defaultColors.darkMode : defaultColors.lightMode
+      return setColor(colors[0], colors[1])
+    }
     if (tab.private) {
       return setColor(defaultColors.private[0], defaultColors.private[1])
     }

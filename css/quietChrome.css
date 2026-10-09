@@ -1,0 +1,118 @@
+/* Svelto Quiet: macOS toolbar tokens and control states (2026-10-09).
+   Keep the platform-specific Windows/Linux chrome in the existing styles. */
+body.mac {
+  --navbar-height: 52px;
+  --quiet-active: #fffefa;
+  --quiet-muted: #66716a;
+  --quiet-line: #d9dfd7;
+  --quiet-hover: #e9ede6;
+  --quiet-accent: #48614c;
+}
+body.mac.dark-mode {
+  --quiet-active: #414a43;
+  --quiet-muted: #a6b2a8;
+  --quiet-line: #3f4841;
+  --quiet-hover: #303b32;
+  --quiet-accent: #bbd0bc;
+}
+body.mac #navbar {
+  height: var(--navbar-height);
+  align-items: center;
+  padding-block: 10px;
+  padding-right: 12px;
+  gap: 8px;
+}
+body.mac #navbar *, body.mac #switch-task-button {
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  letter-spacing: normal;
+}
+body.mac #navbar:before { background: var(--quiet-line); }
+body.mac #navbar #tabs { height: 32px; min-width: 0; }
+body.mac #tabs #tabs-inner { gap: 5px; align-items: center; }
+body.mac .tab-item {
+  height: 32px;
+  line-height: 32px;
+  min-width: 120px;
+  padding-inline: 11px;
+  gap: 8px;
+  border-radius: 8px;
+  color: var(--quiet-muted);
+  transition: background-color 120ms ease, color 120ms ease, transform 150ms ease;
+}
+body.mac #tabs .tab-item.active {
+  min-width: 160px;
+  background: var(--quiet-active);
+  color: var(--theme-foreground-color);
+}
+body.mac #tabs .tab-item:not(.active):hover { background: var(--quiet-hover); }
+body.mac #navbar.show-dividers .tab-item { border-right-color: var(--quiet-line); }
+body.mac .tab-item .title-container { padding: 0; }
+body.mac .tab-item .title {
+  font-size: 12px;
+  width: 100%;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+body.mac .tab-item .url-element { font-size: 11px; line-height: 14px; top: 16px; }
+body.mac .tab-item.active.has-url:hover .title { font-size: 10px; line-height: 14px; top: 2px; transform: none; }
+body.mac .tab-item .tab-icon-area { gap: 4px; margin-left: 0; }
+body.mac .tab-item .tab-close-button {
+  display: inline-flex;
+  height: 22px;
+  width: 22px;
+  align-self: center;
+  font-size: 16px;
+  border-radius: 5px;
+  opacity: .65;
+}
+body.mac .tab-item .tab-close-button:hover,
+body.mac .tab-item .tab-close-button:focus-visible { opacity: 1; background: var(--quiet-hover); }
+body.mac .tab-item .tab-close-button:after { display: none; }
+body.mac .tab-item.is-private .icon-tab-is-private { display: inline-flex; color: #8865aa; }
+body.mac .tab-item .tab-icon { font-size: 14px; }
+body.mac .tab-item .tab-close-button { font-size: 16px; }
+body.mac .tab-item.gu-mirror { height: 32px !important; margin-top: 10px !important; border-radius: 8px; background: var(--quiet-active) !important; color: var(--theme-foreground-color) !important; }
+body.mac #toolbar-navigation-buttons { width: 30px; flex-shrink: 0; height: 30px; }
+body.mac #toolbar-navigation-buttons.can-go-forward:hover,
+body.mac #toolbar-navigation-buttons.can-go-forward:focus-within { width: 60px; }
+body.mac #navbar .navbar-action-button,
+body.mac #switch-task-button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin: 0;
+  border-radius: 8px;
+  font-size: 18px !important;
+  -webkit-app-region: no-drag;
+}
+body.mac #navbar .navbar-action-button:not(:disabled):hover,
+body.mac #switch-task-button:hover { background: var(--quiet-hover); }
+body.mac #navbar .navbar-action-button:active,
+body.mac #switch-task-button.active { background: var(--quiet-active); color: var(--quiet-accent) !important; }
+body.mac #navbar button:focus-visible,
+body.mac #switch-task-button:focus-visible {
+  outline: 2px solid var(--quiet-accent);
+  outline-offset: -2px;
+}
+body.mac #navbar .navbar-action-button:disabled { opacity: .3; }
+body.mac #forward-button { margin-left: 0; }
+body.mac .navbar-right-actions { margin-right: 38px; flex-shrink: 0; }
+body.mac #switch-task-button { top: 11px; right: 12px; display: flex; align-items: center; justify-content: center; }
+body.mac #switch-task-button svg { width: 17px; height: 17px; margin: 0; }
+body.mac #tab-editor {
+  height: 32px;
+  border-radius: 8px;
+  padding-inline: 11px;
+  background: var(--quiet-active);
+  box-shadow: inset 0 0 0 1px var(--quiet-accent);
+}
+body.mac #tab-editor-input { font-size: 13px; letter-spacing: normal; min-width: 0; }
+body.mac #tab-editor .tab-editor-button { border-radius: 5px; padding: 4px; margin-top: 0; }
+body.mac #tab-editor .tab-editor-button:hover { background: var(--quiet-hover); }
+body.mac .progress-bar-container { top: auto; bottom: 0; height: 2px; }
+body.mac .progress-bar { color: var(--quiet-accent); }
+body.mac #searchbar { padding-top: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  body.mac .tab-item, body.mac #navbar, body.mac #toolbar-navigation-buttons,
+  body.mac #tab-editor { transition: none !important; }
+}

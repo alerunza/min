@@ -45,7 +45,7 @@ const tabBar = {
   },
   createTab: function (data) {
     var tabEl = document.createElement('div')
-    tabEl.className = 'tab-item'
+    tabEl.className = 'tab-item' + (data.private ? ' is-private' : '')
     tabEl.setAttribute('data-tab', data.id)
     tabEl.setAttribute('role', 'tab')
 
@@ -66,6 +66,7 @@ const tabBar = {
 
     var closeTabButton = document.createElement('button')
     closeTabButton.className = 'tab-icon tab-close-button i carbon:close'
+    closeTabButton.setAttribute('aria-label', 'Close tab')
 
     closeTabButton.addEventListener('click', function (e) {
       tabBar.events.emit('tab-closed', data.id)
@@ -160,6 +161,8 @@ const tabBar = {
     if (tabData.private) {
       tabEl.title += ' (' + l('privateTab') + ')'
     }
+
+    tabEl.setAttribute('aria-label', tabEl.title)
 
     var tabUrl = urlParser.getDomain(tabData.url)
     if (tabUrl.startsWith('www.') && tabUrl.split('.').length > 2) {

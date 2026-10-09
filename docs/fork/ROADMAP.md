@@ -4,7 +4,7 @@ Updated 2026-10-09. Owner: alerunza. Product language: English.
 
 ## Direction
 
-Create a personal evolution of Min: minimal, lightweight and reliable, with macOS first and Windows after the Mac baseline is stable. Preserve horizontal tabs, search inside the active tab and tasks. **Quiet is the selected UI direction**, confirmed by the project owner. Its prototype is a reference for future implementation; the browser chrome has not yet been redesigned.
+Create a personal evolution of Min: minimal, lightweight and reliable, with macOS first and Windows after the Mac baseline is stable. Preserve horizontal tabs, search inside the active tab and tasks. **Quiet is the selected UI direction**, confirmed by the project owner. Its prototype now informs the macOS toolbar and tab chrome in the Electron preview.
 
 ## Completed baseline
 
@@ -21,16 +21,18 @@ Create a personal evolution of Min: minimal, lightweight and reliable, with macO
 
 This is a local preview. It is not a notarized public release, and it does not resolve the entire upstream issue backlog. Upstream lint debt remains; see the verification report for the comparison.
 
-## Next: Quiet implementation
+## Quiet implementation
 
-- [ ] Define typography, spacing, colors, corner radii, icons and control states from the selected prototype.
-- [ ] Refine toolbar, address editing, loading indicators and tab states without changing the navigation structure.
-- [ ] Preserve task organization and improve task visibility and keyboard focus.
+- [x] Apply Quiet toolbar typography, spacing, colors, corner radii, Tasks icon and control states; production icons remain pending.
+- [x] Refine toolbar, address editing, loading indicators and tab states without changing the navigation structure.
+- [x] Preserve task organization and improve the Tasks control and visible keyboard focus.
 - [ ] Verify tab opening, closing, switching, dragging and focus behavior.
 - [ ] Apply coherent light/dark appearance, contrast, keyboard navigation and VoiceOver support.
 - [ ] Verify window controls, resizing, fullscreen, Spaces and shortcuts on macOS.
 - [ ] Evaluate native materials with a small Electron prototype, measuring readability and performance; honor reduced transparency/motion and define fallbacks.
 - [ ] Evolve settings, history, bookmarks, downloads, reader/PDF surfaces and the new-tab page after the primary chrome is stable.
+
+Quiet toolbar verification: real packaged Electron app on macOS 27 ARM64; light/dark at 1024, 390 and 320 px, address editing/Escape, Tasks opening/closing and the 15 existing smoke checks passed. No new renderer errors or lint diagnostics were introduced. Full VoiceOver, tab dragging, Spaces and fullscreen validation remain open.
 
 Keep Electron/Chromium during this iteration. A SwiftUI/WebKit rewrite is a separate architectural decision with web compatibility and Windows implications.
 

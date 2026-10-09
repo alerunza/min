@@ -8,7 +8,7 @@ Svelto is a personal evolution of Min: minimal, lightweight, fast in intent, and
 - Build and launch an ARM64 macOS preview.
 - Separate app name, bundle identifier, data, welcome page, and release/update identity from Min.
 - Exercise tabs, navigation, attachments, session restore, private tabs, native window closure, and Dock activation.
-- Compare three interface directions before applying browser chrome changes. Completed: Quiet selected by the project owner; browser chrome implementation is next.
+- Compare three interface directions before applying browser chrome changes. Completed: Quiet selected by the project owner; Quiet toolbar and tabs are now implemented on macOS, including light/dark appearance, address editing and Tasks.
 
 ## Next: macOS reliability and UI
 
