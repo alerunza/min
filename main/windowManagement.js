@@ -1,3 +1,4 @@
+// Modified for Svelto: keep cancelled native closes in the window registry (2026-10-09).
 const windows = {
   openWindows: [],
   hasEverCreatedWindow: false,
@@ -18,7 +19,8 @@ const windows = {
       windows.getState(window).lastFocused = Date.now()
     })
 
-    window.on('close', function() {
+    window.on('close', function (event) {
+      if (event.defaultPrevented) return
       // detach WebContentsViews to ensure they aren't destroyed when the window is closed
       window.getContentView().children.slice(1).forEach(child => window.getContentView().removeChildView(child))
       windows.openWindows.find(w => w.win === window).closed = true

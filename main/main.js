@@ -19,21 +19,31 @@ const {
   WebContentsView
 } = electron
 
+// Modified for Svelto: independent identity and data profiles (2026-10-09).
+app.setName('Svelto')
+
+let isInstallerRunning = false
+const isDevelopmentMode = process.argv.some(arg => arg === '--development-mode')
+const isDebuggingEnabled = process.argv.some(arg => arg === '--debug-browser')
+const sveltoProfilePath = process.env.SVELTO_USER_DATA_DIR
+  ? path.resolve(process.env.SVELTO_USER_DATA_DIR)
+  : path.join(app.getPath('appData'), isDevelopmentMode ? 'Svelto-development' : 'Svelto')
+
+fs.mkdirSync(sveltoProfilePath, { recursive: true })
+app.setPath('userData', sveltoProfilePath)
+app.setPath('sessionData', sveltoProfilePath)
+
 crashReporter.start({
-  submitURL: 'https://minbrowser.org/',
+  submitURL: 'https://github.com/alerunza/min',
   uploadToServer: false,
   compress: true
 })
 
 if (process.argv.some(arg => arg === '-v' || arg === '--version')) {
-  console.log('Min: ' + app.getVersion())
+  console.log('Svelto: ' + app.getVersion())
   console.log('Chromium: ' + process.versions.chrome)
   process.exit()
 }
-
-let isInstallerRunning = false
-const isDevelopmentMode = process.argv.some(arg => arg === '--development-mode')
-const isDebuggingEnabled = process.argv.some(arg => arg === '--debug-browser')
 
 function clamp (n, min, max) {
   return Math.max(Math.min(n, max), min)
@@ -54,10 +64,6 @@ if (process.platform === 'win32') {
       app.quit()
     }
   })()
-}
-
-if (isDevelopmentMode) {
-  app.setPath('userData', app.getPath('userData') + '-development')
 }
 
 // workaround for flicker when focusing app (https://github.com/electron/electron/issues/17942)
@@ -84,6 +90,32 @@ if (!isFirstInstance) {
   app.quit()
   return
 }
+
+// BaseWindow does not own its WebContentsView. Save before native shutdown,
+// because its renderer does not receive BrowserWindow's automatic beforeunload.
+let sveltoQuitPrepared = false
+let sveltoQuitPending = false
+function saveSessionForWindow (window, closingWindow) {
+  const contents = getWindowWebContents(window)
+  if (contents.isDestroyed() || contents.isLoadingMainFrame()) return Promise.resolve()
+  return contents.executeJavaScript(closingWindow
+    ? "window.sessionRestore.prepareWindowClose()"
+    : "window.sessionRestore.save(true, true, true)")
+}
+
+app.on('before-quit', function (event) {
+  const currentWindow = windows.getCurrent()
+  if (sveltoQuitPrepared || !currentWindow) return
+  event.preventDefault()
+  if (sveltoQuitPending) return
+  sveltoQuitPending = true
+  saveSessionForWindow(currentWindow).catch(function (error) {
+    console.error('Failed to save Svelto session before quit:', error)
+  }).finally(function () {
+    sveltoQuitPrepared = true
+    app.quit()
+  })
+})
 
 var saveWindowBounds = function () {
   if (windows.getCurrent()) {
@@ -261,9 +293,25 @@ function createWindowWithBounds (bounds, customArgs) {
     }, 0)
   })
 
-  newWin.on('close', function () {
-    // save the window size for the next launch of the app
+  let closePrepared = false
+  let closePending = false
+  newWin.on('close', function (event) {
     saveWindowBounds()
+    if (sveltoQuitPrepared || closePrepared || mainView.webContents.isDestroyed()) return
+    event.preventDefault()
+    if (closePending) return
+    closePending = true
+    saveSessionForWindow(newWin, true).catch(function (error) {
+      console.error('Failed to save Svelto session before window close:', error)
+    }).finally(function () {
+      closePrepared = true
+      newWin.close()
+    })
+  })
+
+  newWin.on('closed', function () {
+    // Explicitly release the browser UI renderer; BaseWindow does not destroy it.
+    if (!mainView.webContents.isDestroyed()) mainView.webContents.close()
   })
 
   newWin.on('focus', function () {

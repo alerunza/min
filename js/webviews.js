@@ -1,3 +1,4 @@
+// Modified for Svelto: keep the committed page address after an attachment download (2026-10-09).
 var urlParser = require('util/urlParser.js')
 var settings = require('util/settings/settings.js')
 
@@ -421,6 +422,12 @@ webviews.bindEvent('did-navigate', function (tabId, url, httpResponseCode, httpS
 })
 
 webviews.bindEvent('did-finish-load', onPageLoad)
+
+ipc.on('download-navigation-complete', function (event, data) {
+  if (webviews.hasViewForTab(data.tabId) && tabs.get(data.tabId).url === data.downloadURL && data.pageURL) {
+    onPageURLChange(data.tabId, data.pageURL)
+  }
+})
 
 webviews.bindEvent('page-title-updated', function (tabId, title, explicitSet) {
   tabs.update(tabId, {

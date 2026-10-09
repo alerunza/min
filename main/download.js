@@ -1,3 +1,5 @@
+/* global getWindowFromViewContents, getTabIDFromWebContents, sendIPCToWindow */
+// Modified for Svelto: attachments do not change the current page file-view state (2026-10-09).
 const currrentDownloadItems = {}
 
 ipc.on('cancelDownload', function (e, path) {
@@ -11,9 +13,18 @@ function isAttachment (header) {
 }
 
 function downloadHandler (event, item, webContents) {
-  let sourceWindow = windows.windowFromContents(webContents)?.win
+  let sourceWindow = getWindowFromViewContents(webContents) || windows.windowFromContents(webContents)?.win
   if (!sourceWindow) {
     sourceWindow = windows.getCurrent()
+  }
+
+  const tabId = getTabIDFromWebContents(webContents)
+  if (tabId && webContents && !webContents.isDestroyed()) {
+    sendIPCToWindow(sourceWindow, 'download-navigation-complete', {
+      tabId,
+      downloadURL: item.getURL(),
+      pageURL: webContents.getURL()
+    })
   }
 
   var savePathFilename
@@ -102,10 +113,12 @@ function listenForDownloadHeaders (ses) {
       // It doesn't make much sense to have this here, but only one onHeadersReceived instance can be created per session
       const isFileView = typeHeader instanceof Array && !typeHeader.some(t => t.includes('text/html'))
 
-      sendIPCToWindow(sourceWindow, 'set-file-view', {
-        url: details.url,
-        isFileView
-      })
+      if (!attachment) {
+        sendIPCToWindow(sourceWindow, 'set-file-view', {
+          url: details.url,
+          isFileView
+        })
+      }
     }
 
     /*

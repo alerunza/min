@@ -1,3 +1,4 @@
+// Modified for Svelto: independent welcome and explicit saves before native close/quit (2026-10-09).
 var browserUI = require('browserUI.js')
 var webviews = require('webviews.js')
 var tabEditor = require('navbar/tabEditor.js')
@@ -10,9 +11,9 @@ const statistics = require('js/statistics.js')
 const sessionRestore = {
   savePath: window.globalArgs['user-data-path'] + (platformType === 'windows' ? '\\sessionRestore.json' : '/sessionRestore.json'),
   previousState: null,
-  save: function (forceSave, sync) {
+  save: function (forceSave, sync, allowUnfocused) {
     //only one window (the focused one) should be responsible for saving session restore data
-    if (!document.body.classList.contains('focused')) {
+    if (!allowUnfocused && !document.body.classList.contains('focused')) {
       return
     }
 
@@ -54,6 +55,12 @@ const sessionRestore = {
       sessionRestore.previousState = stateString
     }
   },
+  prepareWindowClose: function () {
+    sessionRestore.save(true, true, true)
+    ipc.send('tab-state-change', [
+      ['task-updated', tasks.getSelected().id, 'selectedInWindow', null]
+    ])
+  },
   restoreFromFile: function () {
     var savedStringData
     try {
@@ -85,7 +92,7 @@ const sessionRestore = {
         tasks.setSelected(tasks.add()) // create a new task
 
         var newTab = tasks.getSelected().tabs.add({
-            url: 'https://minbrowser.github.io/min/tour'
+            url: 'min://app/pages/welcome/index.html'
         })
         browserUI.addTab(newTab, {
          enterEditMode: false

@@ -1,3 +1,4 @@
+// Modified for Svelto: preserve the unbranded browser user agent (2026-10-09).
 /* Use the same user agent as Chrome to improve site compatibility and increase fingerprinting resistance
 see https://github.com/minbrowser/min/issues/657 for more information */
 
@@ -9,7 +10,7 @@ if (settings.get('customUserAgent')) {
   newUserAgent = settings.get('customUserAgent')
   hasCustomUserAgent = true
 } else {
-  newUserAgent = defaultUserAgent.replace(/Min\/\S+\s/, '').replace(/Electron\/\S+\s/, '').replace(process.versions.chrome, process.versions.chrome.split('.').map((v, idx) => (idx === 0) ? v : '0').join('.'))
+  newUserAgent = defaultUserAgent.replace(/(?:Min|Svelto)\/\S+\s/, '').replace(/Electron\/\S+\s/, '').replace(process.versions.chrome, process.versions.chrome.split('.').map((v, idx) => (idx === 0) ? v : '0').join('.'))
 }
 app.userAgentFallback = newUserAgent
 

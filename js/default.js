@@ -1,3 +1,4 @@
+// Modified for Svelto: expose the trusted UI session lifecycle to native shutdown (2026-10-09).
 window.globalArgs = {}
 
 process.argv.forEach(function (arg) {
@@ -163,7 +164,8 @@ require('util/theme.js').initialize()
 require('userscripts.js').initialize()
 require('statistics.js').initialize()
 require('taskOverlay/taskOverlay.js').initialize()
-require('sessionRestore.js').initialize()
+window.sessionRestore = require('sessionRestore.js')
+window.sessionRestore.initialize()
 require('bookmarkConverter.js').initialize()
 require('newTabPage.js').initialize()
 require('macHandoff.js').initialize()

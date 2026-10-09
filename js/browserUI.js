@@ -1,3 +1,4 @@
+// Modified for Svelto: native window title (2026-10-09).
 var statistics = require('js/statistics.js')
 var searchEngine = require('js/util/searchEngine.js')
 var urlParser = require('js/util/urlParser.js')
@@ -157,7 +158,7 @@ function setWindowTitle () {
   const title = [
     truncateString(tab.title || '', 100),
     truncateString(task.name || '', 100),
-    'Min'
+    'Svelto'
   ].filter(str => !!str).join(' | ')
 
   if (document.title !== title) {

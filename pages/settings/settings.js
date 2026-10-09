@@ -1,4 +1,5 @@
-document.title = l('settingsPreferencesHeading') + ' | Min'
+// Modified for Svelto: preferences title (2026-10-09).
+document.title = l('settingsPreferencesHeading') + ' | Svelto'
 
 var contentTypeBlockingContainer = document.getElementById('content-type-blocking')
 var banner = document.getElementById('restart-required-banner')
