@@ -366,3 +366,8 @@ body.mac #ntp-background-controls button:focus-visible { outline: 2px solid var(
 #ntp-background-error { position: absolute; bottom: 64px; right: 20px; left: 20px; margin-left: auto; max-width: 360px; padding: 12px; border-radius: 6px; background: #fffefa; color: #29352c; font-size: 13px; }
 body:not(.is-ntp) #ntp-content { visibility: hidden; pointer-events: none; }
 body:not(.mac) #ntp-welcome { display: none; }
+
+/* Svelto: permission actions retain Min's compact in-tab indicators. */
+body.mac .permission-request-icon:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: 1px; background: var(--quiet-hover); }
+body.mac .permission-request-icon { border-radius: 4px; }
+body.mac .permission-deny-icon:hover { background: var(--quiet-hover); }

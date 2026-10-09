@@ -1,3 +1,4 @@
+// Svelto: named Allow/Deny actions, keyboard support and explicit reset behavior.
 const { ipcRenderer } = require('electron')
 const webviews = require('webviews.js')
 
@@ -16,12 +17,14 @@ const permissionRequests = {
       return ['carbon:chat']
     } else if (request.permission === 'pointerLock') {
       return ['carbon:cursor-1']
+    } else if (request.permission === 'display-capture') {
+      return ['carbon:screen']
     } else if (request.permission === 'media' && request.details.mediaTypes) {
       var mediaIcons = {
         video: 'carbon:video',
         audio: 'carbon:microphone'
       }
-      return request.details.mediaTypes.map(t => mediaIcons[t])
+      return request.details.mediaTypes.map(t => mediaIcons[t]).filter(Boolean)
     }
     return []
   },
@@ -29,21 +32,30 @@ const permissionRequests = {
     var buttons = []
     permissionRequests.requests.forEach(function (request) {
       const icons = permissionRequests.getIcons(request)
-      //don't display buttons for unsupported permission types
+      // don't display buttons for unsupported permission types
       if (icons.length === 0) {
         return
       }
-  
+
       if (request.tabId === tabId) {
         var button = document.createElement('button')
         button.className = 'tab-icon permission-request-icon'
         if (request.granted) {
           button.classList.add('active')
         }
+        const kind = request.permission === 'media' ? request.details.mediaTypes.map(type => l(type === 'video' ? 'permissionCamera' : 'permissionMicrophone')).join(' + ') : l(request.permission === 'display-capture' ? 'permissionScreen' : request.permission === 'notifications' ? 'permissionNotifications' : 'permissionPointer')
+        const label = l(request.granted ? 'permissionReset' : 'permissionAllow').replace('%p', kind).replace('%s', request.origin)
+        button.title = label
+        button.setAttribute('aria-label', label)
+        button.tabIndex = tabId === tabs.getSelected() ? 0 : -1
+        button.disabled = tabId !== tabs.getSelected()
         icons.forEach(function (icon) {
           var el = document.createElement('i')
           el.className = 'i ' + icon
           button.appendChild(el)
+        })
+        button.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
         })
         button.addEventListener('click', function (e) {
           e.stopPropagation()
@@ -51,10 +63,25 @@ const permissionRequests = {
             webviews.callAsync(tabId, 'reload')
           } else {
             permissionRequests.grantPermission(request.permissionId)
-            button.classList.add('active')
+            webviews.callAsync(tabId, 'focus')
           }
         })
         buttons.push(button)
+        if (!request.granted) {
+          const deny = document.createElement('button')
+          deny.className = 'tab-icon permission-request-icon permission-deny-icon i carbon:close'
+          deny.title = l('permissionDeny').replace('%p', kind).replace('%s', request.origin)
+          deny.setAttribute('aria-label', deny.title)
+          deny.tabIndex = tabId === tabs.getSelected() ? 0 : -1
+          deny.disabled = tabId !== tabs.getSelected()
+          deny.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() })
+          deny.addEventListener('click', function (e) {
+            e.stopPropagation()
+            ipcRenderer.send('permissionDenied', request.permissionId)
+            webviews.callAsync(tabId, 'focus')
+          })
+          buttons.push(deny)
+        }
       }
     })
     return buttons

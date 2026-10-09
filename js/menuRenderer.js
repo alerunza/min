@@ -1,3 +1,5 @@
+/* globals ipc */
+// Svelto: save the original tab only while its document is unchanged; contain dialog/save failures.
 /* Handles messages that get sent from the menu bar in the main process */
 
 var webviews = require('webviews.js')
@@ -100,16 +102,24 @@ module.exports = {
       if (tabs.get(tabs.getSelected()).isFileView) {
         webviews.callAsync(tabs.getSelected(), 'downloadURL', [tabs.get(tabs.getSelected()).url])
       } else {
-        var savePath = await ipc.invoke('showSaveDialog', {
-          defaultPath: currentTab.title.replace(/[/\\]/g, '_')
-        })
+        try {
+          const tabId = currentTab.id
+          const originalURL = currentTab.url
+          var savePath = await ipc.invoke('showSaveDialog', {
+            defaultPath: (currentTab.title || 'Page').replace(/[/\\]/g, '_')
+          })
 
-        // savePath will be undefined if the save dialog is canceled
-        if (savePath) {
-          if (!savePath.endsWith('.html')) {
-            savePath = savePath + '.html'
+          // savePath will be undefined if the save dialog is canceled
+          if (savePath && tabs.get(tabId)?.url === originalURL) {
+            if (!savePath.endsWith('.html')) {
+              savePath = savePath + '.html'
+            }
+            webviews.callAsync(tabId, 'savePage', [savePath, 'HTMLComplete'], function (error) {
+              if (error) alert(l('savePageError'))
+            })
           }
-          webviews.callAsync(tabs.getSelected(), 'savePage', [savePath, 'HTMLComplete'])
+        } catch (error) {
+          alert(l('savePageError'))
         }
       }
     })

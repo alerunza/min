@@ -123,6 +123,8 @@ module.exports = function (platform, extraOptions) {
       darkModeSupport: true,
       extendInfo: {
         NSHumanReadableCopyright: null,
+        NSCameraUsageDescription: 'Svelto lets websites use your camera when you allow access.',
+        NSMicrophoneUsageDescription: 'Svelto lets websites use your microphone when you allow access.',
         CFBundleDocumentTypes: [
           {
             CFBundleTypeName: 'HTML document',

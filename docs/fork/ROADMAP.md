@@ -41,6 +41,9 @@ This is a local preview. It is not a notarized public release, and it does not r
 - [x] Evolve Reader/PDF and New Tab with Quiet while preserving in-tab flows. Keep serif reading, light/dark/sepia, immediate frame styling, accessible appearance controls and keyboard return; escape header metadata and show empty/HTTP failure states. Replace obsolete PDF.js factory calls with current page/text/link APIs, fit pages on resize, preserve distant searchable text with a bounded canvas cache, handle internal destinations and offer explicit retry/download on failure. Keep New Tab minimal with accessible background controls and contained file errors.
 - [x] Add a packaged reading regression suite (`npm run test:reading`): local articles, delayed images, three/thirty-page PDFs, page jumps, search, original-file downloads, print preparation, 320/390 px layouts and background file operations. Real print output, protected/form-heavy PDFs, native chooser coverage and VoiceOver remain manual/separate.
 
+- [x] Keep permission controls in the active tab with named keyboard Allow/Deny and reload-to-reset actions. Scope temporary grants to the complete HTTP(S) origin and session, isolate private tabs, settle pending callbacks on navigation/close and avoid repeated listeners/grant icons. Add macOS camera/microphone usage descriptions and the native system screen picker with denial on unsupported fallback paths.
+- [x] Preserve the original tab in delayed Save Page dialogs, reject requests after its URL changes, handle save errors and normalize cancelled/detached native dialog results. Verify actual multi-file upload bytes and HTMLComplete saving with controlled chooser replies.
+
 Quiet toolbar verification: real packaged Electron app on macOS 27 ARM64; light/dark at 1024, 390 and 320 px, address editing/Escape, Tasks opening/closing and the original 15 smoke checks passed. Tab dragging, keyboard navigation, two-window focus and fullscreen Space coexistence are verified. Full VoiceOver and broader multi-desktop/monitor coverage remain open. The packaged general suite now has 28 passing checks; 17 additional collection checks cover keyboard actions, asynchronous replies, bookmark persistence and downloads. The history-search fixture explicitly waits for indexing before asserting a saved result. All nine JavaScript modules changed in the collection pass have zero Standard diagnostics; upstream lint debt remains elsewhere.
 
 The packaged suites now pass **61 checks**: 28 general, 17 collections and 16 reading/new-tab checks. The five browser JavaScript modules touched in this pass have zero Standard diagnostics; standalone reading scripts also pass syntax checks.
@@ -51,12 +54,13 @@ Keep Electron/Chromium during this iteration. A SwiftUI/WebKit rewrite is a sepa
 
 ## Pending manual verification
 
-Record the app commit, macOS version/architecture, reproduction steps and result for each check. The 61 automated checks remain the baseline; controlled print/chooser responses do not close these items.
+Record the app commit, macOS version/architecture, reproduction steps and result for each check. The automated baseline is 86 checks: 61 existing packaged regressions, 11 permission/file packaged checks and 14 permission-policy unit checks. Controlled print/chooser responses and fake media devices do not close these items.
 
 - [ ] Print real Reader articles and PDFs: page order, margins/scaling, multi-page output, cancelling the macOS dialog and returning to a usable preview.
 - [ ] Verify PDF compatibility with password-protected documents, editable forms, embedded fonts, annotations/links and large documents. Record unsupported behavior and resource usage rather than treating fixture success as complete PDF coverage.
 - [ ] Audit VoiceOver across tabs/address suggestions, Tasks, Preferences, history/bookmarks, downloads, Reader and PDF: accessible names, reading order, selected/expanded states and focus restoration.
 - [ ] Exercise native file dialogs for background selection, uploads and saving downloads, including cancellation. Verify actual file opening and Show in Finder; automated shell/Finder dispatch checks currently use stubs.
+- [ ] Verify real camera/microphone on allow, deny and OS-level refusal; verify native screen-picker acceptance/cancellation and stopping capture. Fake-device tests verify browser consent only.
 - [ ] Verify Developer ID signing, notarization and Gatekeeper on a clean Mac before public distribution. The current ZIP has a verified ad hoc signature and is not notarized; distribution setup is tracked below.
 
 ## macOS reliability and technical foundation
@@ -111,3 +115,5 @@ These remain proposals rather than committed features: pinned tabs, better tab s
 - [macOS issue backlog](MACOS_BACKLOG.md)
 - [License notes](LICENSE_NOTES.md)
 - [Selected UI and alternatives](../design/README.md)
+
+Permission/file QA: `npm run test:permissions` uses a disposable profile, two localhost origins and fake media devices. No physical device or screen is captured. Upload bytes and saved HTML are real; chooser responses are controlled. Native screen selection remains manual. The three fully linted permission/menu modules have zero Standard diagnostics; `tabBar.js` retains two pre-existing diagnostics. Electron system picker API: [official session documentation](https://www.electronjs.org/docs/latest/api/session#sessetdisplaymediarequesthandlerhandler-opts).

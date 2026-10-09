@@ -33,6 +33,7 @@ const tabBar = {
     if (activeTab) {
       activeTab.classList.remove('active')
       activeTab.setAttribute('aria-selected', 'false')
+      activeTab.querySelectorAll('.permission-request-icon').forEach(button => { button.disabled = true; button.tabIndex = -1 })
       if (platformType === 'mac') {
         activeTab.tabIndex = -1
         activeTab.querySelector('.tab-close-button').tabIndex = -1
@@ -42,6 +43,7 @@ const tabBar = {
     var el = tabBar.getTab(tabId)
     el.classList.add('active')
     el.setAttribute('aria-selected', 'true')
+    el.querySelectorAll('.permission-request-icon').forEach(button => { button.disabled = false; button.tabIndex = 0 })
     if (platformType === 'mac') {
       el.tabIndex = 0
       el.querySelector('.tab-close-button').tabIndex = 0
