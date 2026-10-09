@@ -8,4 +8,4 @@ Open `svelto-directions.html` in a browser. These are interactive design prototy
 
 All visible product copy is English. The prototypes support light/dark appearance, tab selection, adding tabs, and task menus. Each direction was checked at desktop and narrow widths; these widths demonstrate layout resilience, not a planned mobile browser.
 
-Recommended starting direction: Quiet. Logo and production icons remain a separate milestone.
+Selected direction: **Quiet**, confirmed by the project owner. Use it as the reference for browser chrome implementation while preserving Min’s horizontal tabs and tasks. Logo and production icons remain a separate milestone.
