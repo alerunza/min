@@ -1,3 +1,4 @@
+/* global ipc */
 // Modified for Svelto: retain attachment addresses and ignore stale events during tab/window changes.
 var urlParser = require('util/urlParser.js')
 var settings = require('util/settings/settings.js')
@@ -210,7 +211,9 @@ const webviews = {
     }
 
     tasks.getTaskContainingTab(tabId).tabs.update(tabId, {
-      hasWebContents: true
+      hasWebContents: true,
+      ...(tabData.sleeping ? { sleeping: false } : {}),
+      ...(tabData.sleepReason ? { sleepReason: null } : {})
     })
   },
   setSelected: function (id, options) { // options.focus - whether to focus the view. Defaults to true.
@@ -489,6 +492,13 @@ webviews.bindIPC('downloadFile', function (tabId, args) {
   if (tabs.get(tabId).url.startsWith('min://')) {
     webviews.callAsync(tabId, 'downloadURL', [args[0]])
   }
+})
+
+ipc.on('tab-slept', function (e, data) {
+  const task = tasks.getTaskContainingTab(data.id)
+  if (!task) return
+  task.tabs.update(data.id, { hasWebContents: false, sleeping: true, hasAudio: false, loaded: false, scrollPosition: data.scrollPosition, previewImage: '', sleepReason: null })
+  if (tabs.getSelected() === data.id) webviews.setSelected(data.id)
 })
 
 ipc.on('view-event', function (e, args) {

@@ -7,7 +7,7 @@ const { performance } = require('node:perf_hooks')
 const { chromium } = require('playwright')
 const b = require('./macos.cjs')
 const mode = process.env.SVELTO_USAGE_MODE || 'cpu'
-assert.ok(['cpu', 'sites', 'latency', 'soak'].includes(mode))
+assert.ok(['cpu', 'sites', 'latency', 'soak', 'resources'].includes(mode))
 const result = {
   mode,
   createdAt: new Date().toISOString(),
@@ -716,6 +716,134 @@ async function soak() {
   result.recovery = { passed: true, restored, selectedHealth: health }
   await finish()
 }
+async function resources() {
+  // All target inspection is disconnected except the trusted GUI during CPU/footprint windows.
+  // Same process, alternating capture policy; suppression is a diagnostic intervention only.
+  await launch("resources");
+  started = performance.now();
+  const loaded = [];
+  const lifecycleOnly = process.env.SVELTO_RESOURCE_LIFECYCLE_ONLY === "1";
+  const count = Number(process.env.SVELTO_RESOURCE_COUNTS || 50);
+  for (let i = 0; i < count; i++)
+    loaded.push(await add(origin + "/fixture/" + i));
+  for (const t of loaded) t.pid = await view(t.id, "getOSProcessId");
+  result.loaded = loaded;
+  await b.sleep(30000);
+  await gui.evaluate(
+    `window.__captures={drop:false,requests:[],replies:[]};const originalSend=ipc.send.bind(ipc);ipc.send=function(channel,...args){if(channel==='getCapture'){__captures.requests.push({at:performance.now(),drop:__captures.drop,id:args[0].id});if(__captures.drop)return}return originalSend(channel,...args)};ipc.on('captureData',(e,d)=>__captures.replies.push({at:performance.now(),id:d.id,bytes:d.url.length}));true`
+  );
+  result.phases = [];
+  const measure = async (label) => {
+    const m = await memory(label);
+    const pids = m.snapshot.processes.map((p) => p.pid);
+    m.processArguments = b.run("/bin/ps", [
+      "-p",
+      pids.join(","),
+      "-o",
+      "pid=,args=",
+    ]);
+    m.metrics = await gui.evaluate("ipc.invoke('resource-metrics')");
+    assert.deepEqual(m.metrics.errors, []);
+    return m;
+  };
+  for (const drop of lifecycleOnly ? [] : [false, true, false, true]) {
+    await gui.evaluate(`__captures.drop=${drop};true`);
+    const pre = await measure(drop ? "suppressed-start" : "normal-start");
+    const before = await gui.evaluate(
+      "({requests:__captures.requests.length,replies:__captures.replies.length,at:performance.now()})"
+    );
+    await gui.evaluate("ipc.invoke('resource-profile-start')");
+    const cpu = await windowCPU(
+      Number(process.env.SVELTO_RESOURCE_SECONDS || 90)
+    );
+    const profile = await gui.evaluate(
+      `ipc.invoke('resource-profile-stop','phase-${result.phases.length}')`
+    );
+    const after = await gui.evaluate(
+      "({requests:__captures.requests,replies:__captures.replies,errors:__usageErrors,at:performance.now()})"
+    );
+    const post = await measure(drop ? "suppressed-end" : "normal-end");
+    assert.deepEqual(after.errors, []);
+    result.phases.push({ drop, pre, post, before, after, cpu, profile });
+    save();
+    console.log(
+      "RESOURCE phase",
+      drop ? "suppressed" : "normal",
+      cpu.meanPercent.toFixed(3),
+      post.footprintMiB.toFixed(1)
+    );
+  }
+  if (!lifecycleOnly) {
+    // Amplified capture workload isolates the same pipeline; it is not representative idle CPU.
+    await gui.evaluate(
+      '__captures.drop=false;window.__captureBurst=setInterval(()=>ipc.send("getCapture",{id:tabs.getSelected(),width:110,height:76}),250);true'
+    );
+    await gui.evaluate("ipc.invoke('resource-profile-start')");
+    const burst = await windowCPU(15);
+    const burstProfile = await gui.evaluate(
+      "ipc.invoke('resource-profile-stop','burst')"
+    );
+    await gui.evaluate("clearInterval(__captureBurst);true");
+    result.burst = {
+      cpu: burst,
+      profile: burstProfile,
+      metrics: await gui.evaluate("ipc.invoke('resource-metrics')"),
+      captures: await gui.evaluate("__captures"),
+    };
+    save();
+  }
+  await gui.evaluate("__captures.drop=true;true");
+  result.beforeSleep = await measure("before-sleep");
+  result.slept = [];
+  const ordered = await state();
+  for (const t of loaded.filter(
+    (t) => !ordered.find((a) => a.id === t.id).selected
+  )) {
+    const response = await gui.evaluate(
+      `ipc.invoke('sleepTab',${JSON.stringify(t.id)})`
+    );
+    assert.equal(response.ok, true, JSON.stringify(response));
+    result.slept.push(t.id);
+  }
+  await b.sleep(10000);
+  result.afterSleep = await measure("after-sleep");
+  assert.deepEqual(await state(), ordered);
+  result.sleepCPU = await windowCPU(lifecycleOnly ? 20 : 60);
+  const toWake = loaded[0];
+  await select(toWake.id);
+  await b.wait(
+    async () => await page(toWake.id, "document.body.innerText.length>50"),
+    "woken resource tab"
+  );
+  result.afterWake = await measure("after-wake");
+  assert.deepEqual(await gui.evaluate("__usageErrors"), []);
+  result.tabsAfterWake = await gui.evaluate(
+    "tabs.get().map(t=>({id:t.id,sleeping:t.sleeping,hasWebContents:t.hasWebContents}))"
+  );
+  result.lifecycle = [];
+  for (let round = 0; round < 2; round++) {
+    for (const t of loaded.slice(0, 10)) {
+      await select(t.id);
+      await b.wait(
+        async () => await page(t.id, "document.body.innerText.length>50"),
+        "repeated wake"
+      );
+    }
+    await select(loaded[loaded.length - 1].id);
+    for (const t of loaded.slice(0, 10)) {
+      const r = await gui.evaluate(
+        `ipc.invoke('sleepTab',${JSON.stringify(t.id)})`
+      );
+      assert.equal(r.ok, true);
+    }
+    await b.sleep(10000);
+    const m = await measure("repeat-sleep-" + round);
+    assert.equal(m.metrics.views.length, 1);
+    result.lifecycle.push(m);
+    save();
+  }
+  await finish();
+}
 let origin
 ;(async () => {
   b.server.removeAllListeners('request')
@@ -749,7 +877,7 @@ let origin
     console.log('ROUTER_PILOT passed')
     return
   }
-  await { cpu, sites: realSites, latency, soak }[mode]()
+  await { cpu, sites: realSites, latency, soak, resources }[mode]()
   result.status = result.failures.length ? 'complete-with-failures' : 'complete'
   save()
   console.log('FINISHED', mode, result.status)

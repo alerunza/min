@@ -1,6 +1,7 @@
 /* global getWindowFromViewContents, getTabIDFromWebContents, sendIPCToWindow, ipc, windows, path, app, session */
 // Modified for Svelto: attachments do not change the current page file-view state (2026-10-09).
 const currrentDownloadItems = {}
+const activeTabDownloads = new Map()
 
 ipc.on('cancelDownload', function (e, path) {
   if (currrentDownloadItems[path]) {
@@ -13,6 +14,7 @@ function isAttachment (header) {
 }
 
 function downloadHandler (event, item, webContents) {
+  activeTabDownloads.set(webContents, (activeTabDownloads.get(webContents) || 0) + 1)
   let sourceWindow = getWindowFromViewContents(webContents) || windows.windowFromContents(webContents)?.win
   if (!sourceWindow) {
     sourceWindow = windows.getCurrent()
@@ -55,6 +57,9 @@ function downloadHandler (event, item, webContents) {
   })
 
   item.once('done', function (e, state) {
+    const remaining = (activeTabDownloads.get(webContents) || 1) - 1
+    if (remaining) activeTabDownloads.set(webContents, remaining)
+    else activeTabDownloads.delete(webContents)
     delete currrentDownloadItems[item.getSavePath()]
     sendIPCToWindow(sourceWindow, 'download-info', {
       path: item.getSavePath(),

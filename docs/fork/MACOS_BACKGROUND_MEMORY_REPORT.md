@@ -65,3 +65,7 @@ Defaults: three repetitions, 50 documents, ten-second settling and fifteen-secon
 ## Follow-up measurements
 
 See the [macOS usage/performance report](MACOS_USAGE_PERFORMANCE_REPORT.md) for longer CPU windows, active public sites/video, address/search latency and the long-session/recovery investigation. Workload and observer conditions differ; these measurements do not imply a runtime optimization.
+
+## Follow-up: manual sleeping tabs
+
+Preview 0.1.1 implements manual suspension and adds targeted capture profiling and per-process resource lifecycle measurements. See [sleeping tabs and resource investigation](MACOS_SUSPENSION_RESOURCE_REPORT.md). The historical observations above retain their original workload and source provenance.

@@ -2,7 +2,7 @@
   "name": "svelto",
   "productName": "Svelto",
   "author": "alerunza",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A minimal, lightweight browser. Derived from Min.",
   "electronVersion": "43.4.1",
   "main": "main.build.js",
@@ -94,7 +94,9 @@
     "benchmark:cpu": "SVELTO_USAGE_MODE=cpu node scripts/benchmarks/usage-macos.cjs",
     "benchmark:sites": "SVELTO_USAGE_MODE=sites node scripts/benchmarks/usage-macos.cjs",
     "benchmark:latency": "SVELTO_USAGE_MODE=latency node scripts/benchmarks/usage-macos.cjs",
-    "benchmark:soak": "SVELTO_USAGE_MODE=soak node scripts/benchmarks/usage-macos.cjs"
+    "benchmark:soak": "SVELTO_USAGE_MODE=soak node scripts/benchmarks/usage-macos.cjs",
+    "test:suspension": "node tests/smoke-suspension-macos.cjs",
+    "benchmark:resources": "node scripts/benchmarks/resources-macos.cjs"
   },
   "repository": {
     "type": "git",

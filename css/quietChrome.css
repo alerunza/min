@@ -371,3 +371,6 @@ body:not(.mac) #ntp-welcome { display: none; }
 body.mac .permission-request-icon:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: 1px; background: var(--quiet-hover); }
 body.mac .permission-request-icon { border-radius: 4px; }
 body.mac .permission-deny-icon:hover { background: var(--quiet-hover); }
+
+/* Sleeping tabs retain their place; the underline also distinguishes the state without color. */
+.tab-item.is-sleeping .title { text-decoration: underline dotted; text-underline-offset: 3px; }

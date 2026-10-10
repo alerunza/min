@@ -1,3 +1,4 @@
+// Modified for Svelto: change mute state without waking sleeping tabs.
 var webviews = require('webviews.js')
 var keybindings = require('keybindings.js')
 
@@ -43,7 +44,7 @@ var tabAudio = {
     var tab = tabs.get(tabId)
     // can be muted if has audio, can be unmuted if muted
     if (tab.hasAudio || tab.muted) {
-      webviews.callAsync(tabId, 'setAudioMuted', !tab.muted)
+      if (webviews.hasViewForTab(tabId)) webviews.callAsync(tabId, 'setAudioMuted', !tab.muted)
       tabs.update(tabId, { muted: !tab.muted })
     }
   },

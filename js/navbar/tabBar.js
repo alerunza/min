@@ -1,3 +1,4 @@
+// Modified for Svelto: sleeping state and late updates for nonvisible Tasks.
 const EventEmitter = require('events')
 
 const webviews = require('webviews.js')
@@ -152,6 +153,8 @@ const tabBar = {
   },
   updateTab: function (tabId, tabEl = tabBar.getTab(tabId)) {
     var tabData = tabs.get(tabId)
+    // Updates for another Task or a closed tab have no element in this window.
+    if (!tabData || !tabEl) return
 
     // update tab title
     var tabTitle
@@ -175,6 +178,8 @@ const tabBar = {
       tabEl.title += ' (' + l('privateTab') + ')'
     }
 
+    tabEl.classList.toggle('is-sleeping', !!tabData.sleeping)
+    if (tabData.sleeping) tabEl.title += ' (Sleeping — reloads when reopened)'
     tabEl.setAttribute('aria-label', tabEl.title)
 
     var tabUrl = urlParser.getDomain(tabData.url)
@@ -340,7 +345,7 @@ webviews.bindEvent('did-stop-loading', function (tabId) {
 })
 
 tasks.on('tab-updated', function (id, key) {
-  var updateKeys = ['title', 'secure', 'url', 'muted', 'hasAudio']
+  var updateKeys = ['title', 'secure', 'url', 'muted', 'hasAudio', 'sleeping']
   if (updateKeys.includes(key)) {
     tabBar.updateTab(id)
   }

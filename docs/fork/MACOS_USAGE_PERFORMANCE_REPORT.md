@@ -158,3 +158,7 @@ Method references: [Electron native input and focus requirements](https://www.el
 ## Remaining scope
 
 These bounded investigations do not establish release readiness. Intermittent CPU bursts still need causal profiling; broader media, login-heavy sites, power/battery, repeated longer sessions and additional Mac hardware remain open. VoiceOver, real native print/file/media-permission flows, distribution signing/notarization, Intel and Windows remain tracked in the roadmap. The preview ZIP is unchanged, ad hoc signed and not notarized.
+
+## Follow-up: manual sleeping tabs
+
+Preview 0.1.1 implements manual suspension and adds targeted capture profiling and per-process resource lifecycle measurements. See [sleeping tabs and resource investigation](MACOS_SUSPENSION_RESOURCE_REPORT.md). The historical observations above retain their original workload and source provenance.

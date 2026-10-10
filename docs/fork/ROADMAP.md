@@ -54,7 +54,7 @@ Keep Electron/Chromium during this iteration. A SwiftUI/WebKit rewrite is a sepa
 
 ## Pending manual verification
 
-Record the app commit, macOS version/architecture, reproduction steps and result for each check. The automated baseline is 101 checks: 61 existing packaged regressions, 11 permission/file packaged checks, 14 permission-policy unit checks and 15 session checks. Controlled print/chooser responses and fake media devices do not close these items.
+Record the app commit, macOS version/architecture, reproduction steps and result for each check. The original automated baseline is 101 checks: 61 existing packaged regressions, 11 permission/file packaged checks, 14 permission-policy unit checks and 15 session checks. Controlled print/chooser responses and fake media devices do not close these items.
 
 - [ ] Print real Reader articles and PDFs: page order, margins/scaling, multi-page output, cancelling the macOS dialog and returning to a usable preview.
 - [ ] Verify PDF compatibility with password-protected documents, editable forms, embedded fonts, annotations/links and large documents. Record unsupported behavior and resource usage rather than treating fixture success as complete PDF coverage.
@@ -78,8 +78,10 @@ Record the app commit, macOS version/architecture, reproduction steps and result
 - [ ] Add meaningful CI checks and verify build workflows on their target platforms.
 - [x] Establish a repeatable macOS ARM64 startup/memory/CDP-inspected CPU baseline with 0/10/30/50 actually loaded local documents: five startup pairs and three resource repetitions. See [performance baseline](MACOS_PERFORMANCE_BASELINE.md).
 - [x] Profile background renderer memory, tab switching/closing and CDP observer effects in three lifecycle runs plus three separate 50-tab visibility controls. See [background memory report](MACOS_BACKGROUND_MEMORY_REPORT.md).
-- [ ] Prototype opt-in suspension of eligible inactive tabs; verify exclusions, reload/restoration, session behavior and memory benefit before enabling automatic suspension.
+- [x] Ship manual sleeping tabs in preview 0.1.1: protected active/private/media/draft/download/permission cases, in-session history and scroll/mute restoration, restart and measured page-process release. Eighteen packaged checks pass. See the [suspension/resource report](MACOS_SUSPENSION_RESOURCE_REPORT.md). Automatic suspension remains a separate product decision.
 - [x] Measure address/input latency with 30 foreground trials, real autocomplete separately, four public sites/scrolling and a bounded video workload on macOS 27 ARM64. See [usage/performance report](MACOS_USAGE_PERFORMANCE_REPORT.md); use matched hardware/settings before any speed or memory comparisons.
+- [x] Profile preview capture/resize/encode with four alternating 90-interval windows and an amplified control; capture costs are confirmed, but the timer does not explain all intermittent peaks. Preserve the production timer; see the [resource report](MACOS_SUSPENSION_RESOURCE_REPORT.md).
+- [ ] Attribute remaining intermittent peaks with Chromium native tracing and controlled profiler overhead.
 - [x] Investigate 50-tab CPU bursts with two 180-interval runs and native process samples. Longer-window means are about 3%, but the causal explanation and intermittent peaks remain open.
 - [x] Complete a two-hour mixed 20-tab session with 24 live draft/document checks and abrupt main-process termination/relaunch. Ordered IDs/URLs and selected content restore; see the [usage/performance report](MACOS_USAGE_PERFORMANCE_REPORT.md) for the complete memory series and limits.
 - [ ] Extend workload verification to login-heavy/media-heavy sites, repeated longer sessions and additional Mac hardware; these bounded observations do not establish universal compatibility or leak freedom.
@@ -87,7 +89,7 @@ Record the app commit, macOS version/architecture, reproduction steps and result
 
 ## Product candidates
 
-These remain proposals rather than committed features: pinned tabs, better tab search, workspace names, command palette, configurable shortcuts/gestures, bookmark import/export, clearer per-site privacy controls, and safe suspension of inactive tabs. Account sync, AI and extensions require separate scope decisions. Vertical-tab sidebars are outside the selected direction.
+These remain proposals rather than committed features: pinned tabs, better tab search, workspace names, command palette, configurable shortcuts/gestures, bookmark import/export, clearer per-site privacy controls. Manual sleeping tabs are implemented; automatic suspension is a separate proposal. Account sync, AI and extensions require separate scope decisions. Vertical-tab sidebars are outside the selected direction.
 
 ## Identity and website
 
@@ -128,3 +130,7 @@ Permission/file QA: `npm run test:permissions` uses a disposable profile, two lo
 Session QA: `npm run test:sessions` adds seven snapshot-store checks and eight packaged macOS checks (15 total). Saves are coalesced on state changes with a 250 ms timer; one last-focused window owns checkpoints even when the app is unfocused. Atomic synchronous writes avoid older queued writes replacing a quit snapshot, keep one valid previous generation, and leave the save cache unchanged after a failure. Restore validates task/tab structure and IDs before populating UI; invalid primary data is archived, a valid previous generation restores automatically, and two invalid generations open the existing explanation. Reset retains UI, synchronization and checkpoint listeners. A crash can still lose changes since the last completed checkpoint; these tests simulate SIGKILL, not a power loss, hardware fault or update.
 
 The final regression run also had one collections relaunch abort with the Electron process closed (no current crash report was available). The complete suite was rerun; this event remains part of the open runtime/debugger investigation, not a fixed crash claim.
+
+## Preview 0.1.1 verification
+
+Manual sleeping-tab QA covers native unload vetoes, actual download interruption, pending consent with fake media devices, cross-window/Tasks protection, selection races, reload/history/scroll/mute, unmute while sleeping and restart. Resource ownership returns to one page view after two repeated ten-tab wake/sleep cycles; the final two footprints are approximately 307/308 MiB. The 50-local-document candidate falls from 1892.6 to 324.9 MiB when 49 tabs sleep. These bounded tests do not establish general leak freedom. See the [English changelog](CHANGELOG.md). The final ZIP-extracted preview passes 119 checks: the existing 101 plus 18 sleeping-tab checks. Late updates for nonvisible Tasks are now ignored so the new sleeping state cannot interrupt cross-window event delivery. The preview is ARM64 and signed ad hoc; notarization and Windows verification remain open.
