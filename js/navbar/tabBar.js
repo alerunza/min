@@ -1,3 +1,4 @@
+// Modified for Svelto: sleeping state and late updates for nonvisible Tasks.
 const EventEmitter = require('events')
 
 const webviews = require('webviews.js')
@@ -32,12 +33,22 @@ const tabBar = {
 
     if (activeTab) {
       activeTab.classList.remove('active')
-      activeTab.removeAttribute('aria-selected')
+      activeTab.setAttribute('aria-selected', 'false')
+      activeTab.querySelectorAll('.permission-request-icon').forEach(button => { button.disabled = true; button.tabIndex = -1 })
+      if (platformType === 'mac') {
+        activeTab.tabIndex = -1
+        activeTab.querySelector('.tab-close-button').tabIndex = -1
+      }
     }
 
     var el = tabBar.getTab(tabId)
     el.classList.add('active')
     el.setAttribute('aria-selected', 'true')
+    el.querySelectorAll('.permission-request-icon').forEach(button => { button.disabled = false; button.tabIndex = 0 })
+    if (platformType === 'mac') {
+      el.tabIndex = 0
+      el.querySelector('.tab-close-button').tabIndex = 0
+    }
 
     requestAnimationFrame(function () {
       el.scrollIntoView()
@@ -45,9 +56,11 @@ const tabBar = {
   },
   createTab: function (data) {
     var tabEl = document.createElement('div')
-    tabEl.className = 'tab-item'
+    tabEl.className = 'tab-item' + (data.private ? ' is-private' : '')
     tabEl.setAttribute('data-tab', data.id)
     tabEl.setAttribute('role', 'tab')
+    tabEl.setAttribute('aria-selected', 'false')
+    tabEl.tabIndex = -1
 
     tabEl.appendChild(readerView.getButton(data.id))
     tabEl.appendChild(tabAudio.getButton(data.id))
@@ -66,6 +79,8 @@ const tabBar = {
 
     var closeTabButton = document.createElement('button')
     closeTabButton.className = 'tab-icon tab-close-button i carbon:close'
+    closeTabButton.setAttribute('aria-label', 'Close tab')
+    if (platformType === 'mac') closeTabButton.tabIndex = -1
 
     closeTabButton.addEventListener('click', function (e) {
       tabBar.events.emit('tab-closed', data.id)
@@ -138,6 +153,8 @@ const tabBar = {
   },
   updateTab: function (tabId, tabEl = tabBar.getTab(tabId)) {
     var tabData = tabs.get(tabId)
+    // Updates for another Task or a closed tab have no element in this window.
+    if (!tabData || !tabEl) return
 
     // update tab title
     var tabTitle
@@ -160,6 +177,10 @@ const tabBar = {
     if (tabData.private) {
       tabEl.title += ' (' + l('privateTab') + ')'
     }
+
+    tabEl.classList.toggle('is-sleeping', !!tabData.sleeping)
+    if (tabData.sleeping) tabEl.title += ' (Sleeping — reloads when reopened)'
+    tabEl.setAttribute('aria-label', tabEl.title)
 
     var tabUrl = urlParser.getDomain(tabData.url)
     if (tabUrl.startsWith('www.') && tabUrl.split('.').length > 2) {
@@ -237,6 +258,40 @@ const tabBar = {
       tabBar.navBar.classList.remove('show-dividers')
     }
   },
+  focusToolbar: function () {
+    const tasksButton = document.getElementById('switch-task-button')
+    if (document.hasFocus() && !tabEditor.isShown && (tabBar.navBar.contains(document.activeElement) || document.activeElement === tasksButton)) {
+      webviews.focus()
+    } else {
+      tabEditor.hide()
+      webviews.releaseFocus()
+      tabBar.getTab(tabs.getSelected()).focus()
+    }
+  },
+  initializeKeyboardNavigation: function () {
+    if (platformType !== 'mac') return
+    document.querySelectorAll('#navbar .navbar-action-button, #switch-task-button').forEach(button => { button.tabIndex = 0 })
+    tabBar.containerInner.addEventListener('keydown', function (event) {
+      const current = event.target.closest('.tab-item')
+      if (!current || event.target !== current || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
+      const items = Array.from(tabBar.containerInner.children)
+      const index = items.indexOf(current)
+      let next
+      if (event.key === 'ArrowRight') next = items[(index + 1) % items.length]
+      if (event.key === 'ArrowLeft') next = items[(index + items.length - 1) % items.length]
+      if (event.key === 'Home') next = items[0]
+      if (event.key === 'End') next = items[items.length - 1]
+      if (next) {
+        event.preventDefault()
+        tabBar.events.emit('tab-selected', next.getAttribute('data-tab'))
+        webviews.releaseFocus()
+        next.focus()
+      } else if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        current.click()
+      }
+    })
+  },
   initializeTabDragging: function () {
     tabBar.dragulaInstance = dragula([document.getElementById('tabs-inner')], {
       direction: 'horizontal',
@@ -290,7 +345,7 @@ webviews.bindEvent('did-stop-loading', function (tabId) {
 })
 
 tasks.on('tab-updated', function (id, key) {
-  var updateKeys = ['title', 'secure', 'url', 'muted', 'hasAudio']
+  var updateKeys = ['title', 'secure', 'url', 'muted', 'hasAudio', 'sleeping']
   if (updateKeys.includes(key)) {
     tabBar.updateTab(id)
   }
@@ -303,6 +358,7 @@ permissionRequests.onChange(function (tabId) {
 })
 
 tabBar.initializeTabDragging()
+tabBar.initializeKeyboardNavigation()
 
 tabBar.container.addEventListener('dragover', e => e.preventDefault())
 

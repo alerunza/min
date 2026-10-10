@@ -1,0 +1,162 @@
+/* Svelto Quiet: shared macOS appearance for Reader and PDF controls. */
+body.mac {
+  --reading-bg: #fffefa;
+  --reading-text: #29352c;
+  --reading-muted: #66716a;
+  --reading-line: #d9dfd7;
+  --reading-accent: #48614c;
+  --reading-hover: #e9ede6;
+  background: var(--reading-bg);
+  color: var(--reading-text);
+  font-family: system-ui, sans-serif;
+}
+body.mac[theme="dark"] {
+  --reading-bg: #252726;
+  --reading-text: #edf0ea;
+  --reading-muted: #a6b2a8;
+  --reading-line: #3f4841;
+  --reading-accent: #bbd0bc;
+  --reading-hover: #303b32;
+}
+body.mac[theme="sepia"] {
+  --reading-bg: #f5ecd9;
+  --reading-text: #4b4030;
+  --reading-muted: #746650;
+  --reading-line: #ded0b5;
+  --reading-accent: #685c38;
+  --reading-hover: #eadfc8;
+}
+body.mac #settings-button {
+  top: 12px !important;
+  right: 16px !important;
+  margin: 0;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  opacity: 1;
+  color: var(--reading-muted);
+  font-size: 17px;
+  text-shadow: none;
+}
+body.mac #settings-button:hover {
+  background: var(--reading-hover);
+}
+body.mac #settings-dropdown {
+  top: 52px !important;
+  right: 16px;
+  z-index: 10000;
+  padding: 12px;
+  border: 1px solid var(--reading-line);
+  border-radius: 8px;
+  background: var(--reading-bg);
+  color: var(--reading-text);
+  box-shadow: 0 6px 20px #00000018;
+  max-width: calc(100vw - 32px);
+  font-size: 13px;
+}
+body.mac #settings-dropdown * {
+  font-size: 13px;
+  letter-spacing: 0;
+}
+body.mac #settings-dropdown .setting-section {
+  padding-left: 0;
+  padding-right: 0;
+  align-items: center;
+}
+body.mac #settings-dropdown .theme-circle {
+  width: 30px;
+  height: 30px;
+}
+body.mac #settings-dropdown .theme-circle.selected {
+  border-color: var(--reading-accent);
+}
+body.mac :focus-visible {
+  outline: 2px solid var(--reading-accent);
+  outline-offset: 3px;
+}
+body.mac input {
+  accent-color: var(--reading-accent);
+}
+body.mac #site-nav-links {
+  margin: 0;
+  padding: 16px 64px 8px 20px;
+  line-height: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+body.mac #site-nav-links a {
+  font-size: 12px;
+  margin: 0;
+  color: var(--reading-muted);
+}
+body.mac #site-nav-links .site-icon {
+  width: 18px;
+  height: 18px;
+}
+body.mac #backtoarticle {
+  max-width: 704px;
+  padding: 16px 24px 0;
+}
+body.mac #backtoarticle-link {
+  color: var(--reading-accent);
+  padding: 4px 0;
+  margin: 0;
+}
+body.mac #backtoarticle-link span {
+  font-size: 13px;
+  vertical-align: middle;
+}
+body.mac #backtoarticle-link .i {
+  font-size: 16px;
+  margin: 0;
+}
+body.mac #auto-redirect-banner {
+  max-width: 656px;
+  margin: 16px auto 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border-color: var(--reading-line);
+  color: var(--reading-muted);
+  background: var(--reading-hover);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+body.mac #auto-redirect-banner label {
+  font-size: 13px;
+  flex: 1;
+  min-width: 160px;
+}
+body.mac #auto-redirect-button-area {
+  float: none;
+  padding: 0;
+  display: flex;
+  gap: 4px;
+}
+body.mac #auto-redirect-button-area button {
+  margin: 0;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--reading-accent);
+}
+body.mac #auto-redirect-button-area button:hover {
+  background: var(--reading-bg);
+}
+@media (max-width: 720px) {
+  body.mac #auto-redirect-banner {
+    margin: 12px 20px 0;
+  }
+}
+@media print {
+  #settings-button,
+  #settings-dropdown,
+  #site-nav-links,
+  #auto-redirect-banner,
+  #backtoarticle {
+    display: none !important;
+  }
+}

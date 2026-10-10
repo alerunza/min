@@ -74,6 +74,11 @@ body.task-overlay-is-shown #download-bar {
   text-overflow: ellipsis;
 }
 
+/* Svelto: file opening is a real button; keep legacy platforms' row layout. */
+.download-file-button { display: flex; align-items: center; min-width: 0; flex: 1; text-align: left; }
+.download-file-button .download-title { min-width: 0; flex: 1; }
+.download-file-button:disabled { opacity: 1; cursor: default; }
+
 .download-info {
   display: inline-block;
   margin-top: 0.1em;

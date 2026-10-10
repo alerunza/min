@@ -1,3 +1,4 @@
+// Modified for Svelto: bundle identity and development-file exclusions (2026-10-09).
 const builder = require('electron-builder')
 const Platform = builder.Platform
 const Arch = builder.Arch
@@ -66,6 +67,12 @@ module.exports = function (platform, extraOptions) {
   }
 
   const options = {
+    appId: 'io.github.alerunza.svelto',
+    // Reuse the installed runtime only when its host and architecture match the target.
+    electronDist: platform === { darwin: 'mac', win32: 'win32', linux: 'linux' }[process.platform] &&
+      extraOptions.arch === { arm64: Arch.arm64, x64: Arch.x64, ia32: Arch.ia32 }[process.arch]
+      ? path.resolve(__dirname, '../node_modules/electron/dist')
+      : undefined,
     files: [
       '**/*',
       '!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}',
@@ -74,6 +81,8 @@ module.exports = function (platform, extraOptions) {
       '!**/*.map',
       '!**/*.md',
       '!**/._*',
+      '!**/*.dataless-backup',
+      '!**/.git.svelto-preserved-*/**',
       '!**/icons/source',
       '!dist/app',
       // this is copied during the build
@@ -81,6 +90,12 @@ module.exports = function (platform, extraOptions) {
       // localization files are compiled and copied to dist
       '!localization/',
       '!scripts/',
+      '!script/',
+      '!tests/',
+      '!docs/',
+      '!output/',
+      '!**/.codex/**',
+      'ext/readability-master/LICENSE.md',
       // These are bundled in.
       '!**/main',
       // parts of modules that aren"t needed
@@ -102,11 +117,14 @@ module.exports = function (platform, extraOptions) {
       icon: 'icons/icon256.ico'
     },
     mac: {
+      identity: null, // Local previews are signed ad hoc; distribution signing is configured separately.
       icon: 'icons/icon.icns',
       target: 'dir',
       darkModeSupport: true,
       extendInfo: {
         NSHumanReadableCopyright: null,
+        NSCameraUsageDescription: 'Svelto lets websites use your camera when you allow access.',
+        NSMicrophoneUsageDescription: 'Svelto lets websites use your microphone when you allow access.',
         CFBundleDocumentTypes: [
           {
             CFBundleTypeName: 'HTML document',

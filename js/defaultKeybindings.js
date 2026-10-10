@@ -65,6 +65,12 @@ const defaultKeybindings = {
       browserUI.addTab(newTab, { enterEditMode: false })
     })
 
+    if (platformType === 'mac') {
+      keybindings.defineShortcut({ keys: ['f6', 'shift+f6'] }, function () {
+        require('navbar/tabBar.js').focusToolbar()
+      }, { contexts: ['default'] })
+    }
+
     keybindings.defineShortcut('enterEditMode', function (e) {
       tabEditor.show(tabs.getSelected())
       return false

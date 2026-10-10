@@ -1,3 +1,4 @@
+// Svelto: wait for PDF text before searching, and ignore replies for closed/changed searches.
 var webviews = require('webviews.js')
 var keybindings = require('keybindings.js')
 var PDFViewer = require('pdfViewer.js')
@@ -29,7 +30,20 @@ var findinpage = {
     findinpage.input.select()
 
     if (findinpage.input.value) {
-      webviews.callAsync(findinpage.activeTab, 'findInPage', findinpage.input.value)
+      findinpage.search()
+    }
+  },
+  search: function () {
+    var tabId = findinpage.activeTab
+    var query = findinpage.input.value
+    function runSearch (error) {
+      if (error || findinpage.container.hidden || findinpage.activeTab !== tabId || findinpage.input.value !== query) return
+      webviews.callAsync(tabId, 'findInPage', query)
+    }
+    if (PDFViewer.isPDFViewer(tabId)) {
+      PDFViewer.startFindInPage(tabId, runSearch)
+    } else {
+      runSearch()
     }
   },
   end: function (options) {
@@ -63,7 +77,7 @@ findinpage.endButton.addEventListener('click', function () {
 
 findinpage.input.addEventListener('input', function (e) {
   if (this.value) {
-    webviews.callAsync(findinpage.activeTab, 'findInPage', findinpage.input.value)
+    findinpage.search()
   } else {
     webviews.callAsync(findinpage.activeTab, 'stopFindInPage', 'clearSelection')
     findinpage.counter.textContent = ''

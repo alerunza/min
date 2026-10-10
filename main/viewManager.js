@@ -1,3 +1,5 @@
+/* global sleepingTabHistory, closingSleepTabs, windows */
+// Modified for Svelto: handle asynchronous view/capture failures during tab transitions.
 var viewMap = {} // id: view
 var viewStateMap = {} // id: view state
 
@@ -38,6 +40,9 @@ function createView (existingViewId, id, webPreferences, boundsString, events) {
 
   viewStateMap[id] = {
     loadedInitialURL: false,
+    partition: viewPrefs.partition,
+    navigationGeneration: 0,
+    playingMedia: false,
     hasJS: viewPrefs.javascript // need this later to see if we should swap the view for a JS-enabled one
   }
 
@@ -55,6 +60,7 @@ function createView (existingViewId, id, webPreferences, boundsString, events) {
 
   events.forEach(function (event) {
     view.webContents.on(event, function (e) {
+      if (viewMap[id] !== view) return // ignore events from a closed or replaced view
       var args = Array.prototype.slice.call(arguments).slice(1)
 
       const eventTarget = getWindowFromViewContents(view.webContents) || windows.getCurrent()
@@ -71,6 +77,10 @@ function createView (existingViewId, id, webPreferences, boundsString, events) {
       })
     })
   })
+
+  view.webContents.on('media-started-playing', () => { viewStateMap[id].playingMedia = true })
+  view.webContents.on('media-paused', () => { if (viewStateMap[id]) viewStateMap[id].playingMedia = false })
+  view.webContents.on('did-start-navigation', (event) => { if (viewStateMap[id]) { viewStateMap[id].navigationGeneration++; if (event.isMainFrame && !event.isSameDocument) viewStateMap[id].playingMedia = false } })
 
   view.webContents.on('select-bluetooth-device', function (event, deviceList, callback) {
     event.preventDefault()
@@ -242,6 +252,9 @@ function createView (existingViewId, id, webPreferences, boundsString, events) {
 }
 
 function destroyView (id) {
+  sleepingTabHistory.delete(id)
+  if (viewStateMap[id]) viewStateMap[id].discarded = true
+  windows.getAll().forEach(win => { if (windows.getState(win).activeTab === id) windows.getState(win).activeTab = null })
   if (!viewMap[id]) {
     return
   }
@@ -259,12 +272,23 @@ function destroyView (id) {
 }
 
 function destroyAllViews () {
+  sleepingTabHistory.clear()
   for (const id in viewMap) {
     destroyView(id)
   }
 }
 
 function setView (id, senderContents) {
+  if (closingSleepTabs.has(id)) {
+    // Selection while beforeunload runs waits; successful sleep recreates the page via tab-slept.
+    const waitingWindow = windows.windowFromContents(senderContents)?.win
+    const sequence = waitingWindow && windows.getState(waitingWindow).selectionSequence
+    closingSleepTabs.get(id).then(result => {
+      if (!result.ok && viewMap[id] && !senderContents.isDestroyed() && windows.getAll().includes(waitingWindow) && windows.getState(waitingWindow).selectionSequence === sequence) setView(id, senderContents)
+    })
+    return
+  }
+  if (!viewMap[id]) return
   const win = windows.windowFromContents(senderContents).win
 
   // changing views can cause flickering, so we only want to call it if the view is actually changing
@@ -278,6 +302,7 @@ function setView (id, senderContents) {
       win.getContentView().removeChildView(viewMap[id])
     }
     windows.getState(win).selectedView = id
+    windows.getState(win).activeTab = id
   }
 }
 
@@ -341,6 +366,9 @@ ipc.on('destroyAllViews', function () {
 })
 
 ipc.on('setView', function (e, args) {
+  const win = windows.windowFromContents(e.sender)?.win
+  if (!win) return
+  windows.getState(win).selectionSequence = (windows.getState(win).selectionSequence || 0) + 1
   setView(args.id, e.sender)
   setBounds(args.id, args.bounds)
   if (args.focus && BrowserWindow.fromWebContents(e.sender) && BrowserWindow.fromWebContents(e.sender).isFocused()) {
@@ -375,7 +403,15 @@ function loadURLInView (id, url, win) {
       win.getContentView().addChildView(viewMap[id])
     }
   }
-  viewMap[id].webContents.loadURL(url)
+  const sleepingHistory = sleepingTabHistory.get(id)
+  sleepingTabHistory.delete(id)
+  if (sleepingHistory && sleepingHistory.entries[sleepingHistory.index]?.url === url) {
+    viewMap[id].webContents.navigationHistory.restore(sleepingHistory).catch(error => {
+      console.warn('Could not restore sleeping tab history:', error.message)
+    })
+  } else {
+    viewMap[id].webContents.loadURL(url)
+  }
   viewStateMap[id].loadedInitialURL = true
 }
 
@@ -405,16 +441,15 @@ ipc.on('callViewMethod', function (e, data) {
   }
   if (result instanceof Promise) {
     result.then(function (result) {
-      if (data.callId) {
+      if (data.callId && !e.sender.isDestroyed()) {
         e.sender.send('async-call-result', { callId: data.callId, error: null, result })
       }
-    })
-    result.catch(function (error) {
-      if (data.callId) {
+    }, function (error) {
+      if (data.callId && !e.sender.isDestroyed()) {
         e.sender.send('async-call-result', { callId: data.callId, error, result: null })
       }
     })
-  } else if (data.callId) {
+  } else if (data.callId && !e.sender.isDestroyed()) {
     e.sender.send('async-call-result', { callId: data.callId, error, result })
   }
 })
@@ -444,13 +479,20 @@ ipc.on('getCapture', function (e, data) {
     return
   }
 
-  view.webContents.capturePage().then(function (img) {
+  const capturedContents = view.webContents
+  capturedContents.capturePage().then(function (img) {
+    if (viewMap[data.id] !== view || capturedContents.isDestroyed()) return
     var size = img.getSize()
     if (size.width === 0 && size.height === 0) {
       return
     }
     img = img.resize({ width: data.width, height: data.height })
-    e.sender.send('captureData', { id: data.id, url: img.toDataURL() })
+    if (!e.sender.isDestroyed()) e.sender.send('captureData', { id: data.id, url: img.toDataURL() })
+  }).catch(function (error) {
+    // Chromium can reject captures while the view is being hidden or destroyed.
+    if (!capturedContents.isDestroyed() && error.message !== 'UnknownVizError') {
+      console.warn('Could not capture tab preview:', error.message)
+    }
   })
 })
 
@@ -458,10 +500,14 @@ ipc.on('saveViewCapture', function (e, data) {
   var view = viewMap[data.id]
   if (!view) {
     // view could have been destroyed
+    return
   }
 
-  view.webContents.capturePage().then(function (image) {
-    view.webContents.downloadURL(image.toDataURL())
+  const capturedContents = view.webContents
+  capturedContents.capturePage().then(function (image) {
+    if (!capturedContents.isDestroyed()) capturedContents.downloadURL(image.toDataURL())
+  }).catch(function (error) {
+    console.warn('Could not save page capture:', error.message)
   })
 })
 

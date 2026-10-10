@@ -1,3 +1,5 @@
+// Modified for Svelto: sleep/wake menu and safe reload of sleeping tabs.
+/* global ipc */
 const remoteMenu = require('remoteMenuRenderer.js')
 const browserUI = require('browserUI.js')
 const webviews = require('webviews.js')
@@ -45,6 +47,7 @@ const tabContextMenu = {
       if (!readerView.isReader(tabId)) {
         tabMenu[0].push({
           label: l('enterReaderView'),
+          enabled: !tabs.get(tabId).sleeping,
           click: function () {
             readerView.enter(tabId, tabs.get(tabId).url)
           }
@@ -62,6 +65,10 @@ const tabContextMenu = {
     tabMenu[0].push( {
       label: l('tabMenuReload'),
       click: function () {
+        if (!webviews.hasViewForTab(tabId)) {
+          browserUI.switchToTab(tabId)
+          return
+        }
         if (tabs.get(tabId).url.startsWith(webviews.internalPages.error)) {
           // reload the original page rather than show the error page again
           webviews.update(tabId, new URL(tabs.get(tabId).url).searchParams.get('url'))
@@ -72,6 +79,28 @@ const tabContextMenu = {
       }
     })
 
+    const tab = tabs.get(tabId)
+    tabMenu.push([
+      {
+        label: tab.sleeping ? 'Wake tab' : 'Sleep tab — reloads when reopened',
+        enabled: !!tab.sleeping || (!!tab.hasWebContents && !tab.selected && !tab.private && !tab.isFileView && !tab.hasAudio && /^https?:\/\//.test(tab.url)),
+        click: async function () {
+          if (tabs.get(tabId)?.sleeping) {
+            browserUI.switchToTab(tabId)
+            return
+          }
+          try {
+            const result = await ipc.invoke('sleepTab', tabId)
+            const task = tasks.getTaskContainingTab(tabId)
+            if (task && !result.ok) task.tabs.update(tabId, { sleepReason: result.reason })
+          } catch (error) {
+            const task = tasks.getTaskContainingTab(tabId)
+            if (task) task.tabs.update(tabId, { sleepReason: 'This page could not be checked safely' })
+          }
+        }
+      },
+      ...(tab.sleepReason ? [{ label: tab.sleepReason, enabled: false }] : [])
+    ])
     remoteMenu.open(tabMenu)
   },
   initialize: function () {

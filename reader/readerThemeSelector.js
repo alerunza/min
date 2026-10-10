@@ -1,11 +1,12 @@
+// Svelto: expose the selected appearance to assistive technology.
 var metaThemeElement = document.getElementById('meta-theme')
 
 var themeSelectors = document.querySelectorAll('.theme-circle')
 
 var metaThemeValues = {
-  light: '#fff',
-  dark: 'rgb(36, 41, 47)',
-  sepia: 'rgb(247, 231, 199)'
+  light: '#fffefa',
+  dark: '#252726',
+  sepia: '#f5ecd9'
 }
 
 function isNight () {
@@ -22,6 +23,7 @@ function setTheme (theme) {
   metaThemeElement.content = metaThemeValues[theme]
 
   themeSelectors.forEach(function (el) {
+    el.setAttribute('aria-pressed', String(el.getAttribute('data-theme') === theme))
     if (el.getAttribute('data-theme') === theme) {
       el.classList.add('selected')
     } else {

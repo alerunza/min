@@ -1,3 +1,5 @@
+/* global ipc */
+// Svelto: collection status, keyboard deletion and query-scoped history replies.
 var searchbar = require('searchbar/searchbar.js')
 var searchbarPlugins = require('searchbar/searchbarPlugins.js')
 var searchbarUtils = require('searchbar/searchbarUtils.js')
@@ -16,17 +18,24 @@ module.exports = {
       showSuggestions: async function (text, input, event) {
         const results = await places.searchPlaces(text, { limit: Infinity })
 
+        if (!searchbar.isCurrentCommand('!history', text, input)) {
+          return
+        }
+
         searchbarPlugins.reset('bangs')
 
         var container = searchbarPlugins.getContainer('bangs')
+        const header = searchbarUtils.createCollectionHeader(l('appMenuHistory'), Math.min(results.length, 1000), l(text ? 'historyNoMatches' : 'historyEmpty'))
+        container.appendChild(header)
 
         // show clear button
 
         if (text === '' && results.length > 0) {
           var clearButton = document.createElement('button')
           clearButton.className = 'searchbar-floating-button'
+          clearButton.tabIndex = -1
           clearButton.textContent = l('clearHistory')
-          container.appendChild(clearButton)
+          header.appendChild(clearButton)
 
           clearButton.addEventListener('click', function () {
             if (confirm(l('clearHistoryConfirmation'))) {
@@ -36,7 +45,9 @@ module.exports = {
               // hacky way to refresh the list
               // TODO make a better api for this
               setTimeout(function () {
-                searchbarPlugins.run('!history ' + text, input, null)
+                if (searchbar.isCurrentCommand('!history', text, input)) {
+                  searchbar.showResults('!history ' + text)
+                }
               }, 200)
             }
           })
@@ -67,7 +78,10 @@ module.exports = {
             },
             delete: function () {
               places.deleteHistory(result.url)
+              searchbar.showResults('!history ' + text)
             },
+            classList: ['history-item'],
+            deleteLabel: l(result.isBookmarked ? 'historyDeleteBookmarkedItem' : 'historyDeleteItem'),
             showDeleteButton: true
           }
           var placeholder = lazyList.createPlaceholder()

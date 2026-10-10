@@ -1,3 +1,6 @@
+/* globals ipc */
+// Svelto: keep hidden new-tab controls outside keyboard navigation.
+// Modified for Svelto: native window title (2026-10-09).
 var statistics = require('js/statistics.js')
 var searchEngine = require('js/util/searchEngine.js')
 var urlParser = require('js/util/urlParser.js')
@@ -157,7 +160,7 @@ function setWindowTitle () {
   const title = [
     truncateString(tab.title || '', 100),
     truncateString(task.name || '', 100),
-    'Min'
+    'Svelto'
   ].filter(str => !!str).join(' | ')
 
   if (document.title !== title) {
@@ -210,6 +213,13 @@ tasks.on('tab-updated', function (id, key) {
   }
 })
 
+function setNewTabVisible (visible) {
+  document.body.classList.toggle('is-ntp', visible)
+  var content = document.getElementById('ntp-content')
+  content.inert = !visible
+  content.setAttribute('aria-hidden', String(!visible))
+}
+
 /* switches to a tab - update the webview, state, tabstrip, etc. */
 
 function switchToTab (id, options) {
@@ -223,16 +233,12 @@ function switchToTab (id, options) {
 
   tabEditor.hide()
 
-  if (!tabs.get(id).url) {
-    document.body.classList.add('is-ntp')
-  } else {
-    document.body.classList.remove('is-ntp')
-  }
+  setNewTabVisible(!tabs.get(id).url)
 }
 
 tasks.on('tab-updated', function (id, key) {
   if (key === 'url' && id === tabs.getSelected()) {
-    document.body.classList.remove('is-ntp')
+    setNewTabVisible(!tabs.get(id).url)
   }
 })
 

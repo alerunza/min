@@ -1,3 +1,4 @@
+// Svelto: discard history suggestions after the address query changes/closes.
 var searchbarPlugins = require('searchbar/searchbarPlugins.js')
 var searchbarUtils = require('searchbar/searchbarUtils.js')
 var urlParser = require('util/urlParser.js')
@@ -16,6 +17,11 @@ async function showPlaceSuggestions (text, input, inputFlags) {
   }
 
   let results = await places.getPlaceSuggestions(url)
+
+  const searchbar = require('searchbar/searchbar.js')
+  if (searchbar.associatedInput !== input || searchbar.getValue() !== text) {
+    return
+  }
 
   searchbarPlugins.reset('placeSuggestions')
 

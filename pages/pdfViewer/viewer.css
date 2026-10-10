@@ -1,278 +1,176 @@
-@media screen {
-  html {
-    padding: 0;
-    margin: 0;
-    font-family: ".SFNSText-Regular", "BlinkMacSystemFont", "Helvetica Neue",
-      "Segoe UI", "Arial", sans-serif;
-  }
-  body {
-    background-color: rgb(200, 200, 200);
-    margin-top: 25px;
-    padding: 0;
-    /* disables scroll anchoring to prevent https://github.com/minbrowser/min/issues/1209 */
-    overflow-anchor: none;
-  }
-  body.theme-loaded {
-    transition: 0.2s background-color;
-  }
-  body[theme="dark"] {
-    background-color: rgb(33, 37, 43);
-  }
-
-  body[theme="sepia"] {
-    background-color: rgb(247, 231, 199);
-  }
-
-  * {
-    box-sizing: border-box;
-  }
-
-  button {
-    font-size: 1em;
-  }
-
-  .viewer-ui {
-    user-select: none;
-    z-index: 9999;
-  }
-
-  #progress-bar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 4px;
-    background-color: #555;
-    transition: 0.2s transform;
-    width: 100%;
-    transform: translateX(-100%);
-  }
-
-  [theme="dark"] #progress-bar {
-    background-color: #999;
-  }
-
-  #page-counter {
-    position: fixed;
-    top: 20px;
-    left: 30px;
-    padding: 0.5em 0.75em;
-    background-color: white;
-    border-radius: 5px;
-    transition: 0.2s opacity;
-    box-shadow: 1px 2px 5px 0 rgba(0, 0, 0, 0.15);
-  }
-
-  [theme="dark"] #page-counter {
-    background-color: rgb(85, 85, 85);
-    color: white;
-  }
-
-  #page-counter input {
-    -webkit-appearance: none;
-    appearance: none;
-    background: transparent;
-    margin: 0;
-    padding: 2px 1px;
-    margin: -2px 0;
-    border: none;
-    font: inherit;
-    color: inherit;
-    width: 2.75em;
-    text-align: center;
-    border: 1px #ddd solid;
-  }
-
-  #page-counter.hidden {
-    opacity: 0;
-  }
-
-  #download-button {
-    -webkit-appearance: none;
-    appearance: none;
-    border: none;
-    font-size: 1.5em;
-    height: 2.5em;
-    width: 2.5em;
-    line-height: 2.5em;
-    text-align: center;
-    position: fixed;
-    bottom: 20px;
-    right: 30px;
-    background-color: white;
-    border-radius: 50%;
-    transition: 0.2s opacity;
-    box-shadow: 1px 2px 5px 0 rgba(0, 0, 0, 0.25);
-  }
-
-  [theme="dark"] #download-button {
-    background-color: rgb(85, 85, 85);
-    color: white;
-  }
-
-  #download-button.hidden {
-    opacity: 0;
-  }
-
-  #settings-button {
-    appearance: none;
-    border: none;
-    outline: none;
-    background: none;
-    top: 1em !important;
-    right: 1em !important;
-    border-radius: 50%;
-  }
-
-  #settings-dropdown {
-    top: 3.75em !important;
-  }
-
-  [theme="dark"] #settings-button {
-    color: #ddd;
-    text-shadow: 0 0 2px black;
-  }
-
-  #settings-button.hidden:not(.force-visible) {
-    opacity: 0;
-  }
-
-  .page-container.loading {
-    opacity: 0;
-  }
-
-  .side-gutter {
-    position: fixed;
-    top: 0;
-    height: 100vh;
-    z-index: 999;
-  }
-  #side-gutter-left {
-    left: 0;
-  }
-  #side-gutter-right {
-    right: 0;
-  }
-
-  .page {
-    position: relative;
-    box-shadow: 0px 0px 15px rgba(50, 50, 50, 0.3);
-    margin: 15px auto;
-    border: 1px solid #ccc;
-    contain: strict;
-  }
-  body.theme-loaded .page {
-    transition: 0.2s filter;
-  }
-  [theme="dark"][data-invert="true"] .page {
-    filter: invert(0.9) hue-rotate(180deg);
-    box-shadow: 0px 0px 15px rgba(255, 255, 255, 0.3);
-    border-color: #ddd;
-  }
-  [theme="sepia"] .page {
-    filter: sepia(0.8) hue-rotate(-20deg);
-  }
-
-  .canvasWrapper {
-    overflow: hidden;
-  }
-  .textLayer {
-    position: absolute;
-    left: 0;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    color: #000;
-    font-family: sans-serif;
-    overflow: hidden;
-    contain: strict;
-  }
-
-  .textLayer span {
-    color: transparent;
-    position: absolute;
-    white-space: pre;
-    cursor: text;
-    transform-origin: top left;
-  }
-
-  .textLayer span.markedContent {
-    top: 0;
-    height: 0;
-  }
-
-  .annotationLayer img,
-  .annotationLayer .popupAnnotation,
-  .annotationLayer .popupWrapper {
-    display: none;
-  }
-
-  .annotationLayer span[data-l10n-id] {
-    display: none;
-  }
-
-  .annotationLayer section {
-    position: absolute;
-    text-align: initial;
-  }
-  
-  .annotationLayer .linkAnnotation > a,a {
-    position: absolute;
-    font-size: 1em;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-  }
-  
-  .annotationLayer .linkAnnotation > a:hover {
-    opacity: 0.2;
-    background: rgba(255, 255, 0, 1);
-    box-shadow: 0 2px 10px rgba(255, 255, 0, 1);
-  }
-
-  .page-container {
-    position: relative;
-  }
+/* Svelto PDF viewer: PDF.js supplies the text/annotation layers; this file styles its shell. */
+* {
+  box-sizing: border-box;
 }
-
+html {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, sans-serif;
+}
+body {
+  margin: 0;
+  padding: 72px 0 16px;
+  background: #f0f1ee;
+  color: #29352c;
+  overflow-anchor: none;
+}
+body[theme="dark"] {
+  background: #252726;
+  color: #edf0ea;
+}
+body[theme="sepia"] {
+  background: #f5ecd9;
+  color: #4b4030;
+}
+[hidden] {
+  display: none !important;
+}
+#pdf-toolbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  z-index: 9999;
+  background: inherit;
+  border-bottom: 1px solid #d9dfd7;
+  font-size: 13px;
+  user-select: none;
+}
+#page-counter {
+  margin-right: auto;
+  white-space: nowrap;
+}
+#page-counter input {
+  width: 44px;
+  height: 28px;
+  margin: 0 4px;
+  border: 1px solid #d9dfd7;
+  border-radius: 5px;
+  text-align: center;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+}
+#download-button,
+#settings-button {
+  appearance: none;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  font-size: 17px;
+}
+#pdf-toolbar #settings-button {
+  position: static;
+  opacity: 1;
+}
+#download-button:hover,
+#settings-button:hover {
+  background: #e9ede6;
+}
+body.mac #pdf-toolbar #settings-button {
+  position: static;
+}
+body.mac #pdf-toolbar {
+  background: var(--reading-bg);
+  border-color: var(--reading-line);
+}
+body.mac #pdf-toolbar input {
+  border-color: var(--reading-line);
+}
+body.mac #download-button:hover {
+  background: var(--reading-hover);
+}
+#progress-bar {
+  position: fixed;
+  top: 55px;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background: #48614c;
+  z-index: 10001;
+  transform: translateX(-100%);
+}
+.pdfViewer .page {
+  border: 0;
+  margin: 0 auto 16px;
+  box-shadow: 0 2px 10px #00000018;
+}
+.page-container {
+  position: relative;
+  margin: auto;
+}
+body[theme="dark"][data-invert="true"] .page {
+  filter: invert(0.9) hue-rotate(180deg);
+}
+#pdf-error {
+  max-width: 480px;
+  margin: 12vh auto;
+  padding: 24px;
+}
+#pdf-error h1 {
+  font-size: 20px;
+  font-weight: 500;
+}
+#pdf-error p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+#pdf-error button {
+  font: inherit;
+  color: inherit;
+  border: 1px solid #d9dfd7;
+  border-radius: 6px;
+  background: transparent;
+  padding: 8px 12px;
+  margin: 8px 4px 0 0;
+}
+body.mac #pdf-error button {
+  border-color: var(--reading-line);
+}
+:focus-visible {
+  outline: 2px solid #48614c;
+  outline-offset: 3px;
+}
 @media print {
   @page {
     margin: 0;
   }
   body {
     margin: 0;
+    padding: 0;
+    background: white !important;
   }
-  .side-gutter,
-  .viewer-ui {
-    display: none;
-  }
-  .page {
-    visibility: visible !important;
-    margin: -16px 0 0 0 0;
-    width: 100% !important;
-    height: auto !important;
-    float: left;
-    filter: none !important;
-    opacity: 1 !important;
-  }
-  .page > .canvasWrapper {
-    width: 100% !important;
-    height: auto !important;
-    /* don't let whitespace affect the height of the element */
-    font-size: 0;
-    margin-top: -1px;
-  }
-  .page > .canvasWrapper > canvas {
-    width: 100% !important;
-    height: auto !important;
-    page-break-before: always;
-    page-break-after: always;
-    page-break-inside: avoid;
-  }
-  .page > .textLayer {
+  .viewer-ui,
+  #pdf-error {
     display: none !important;
   }
-  .page > .annotationLayer {
+  .pdfViewer .page {
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+    filter: none !important;
+    width: 100% !important;
+    height: auto !important;
+    break-after: page;
+    break-inside: avoid;
+  }
+  .canvasWrapper,
+  .canvasWrapper canvas {
+    width: 100% !important;
+    height: auto !important;
+  }
+  .textLayer,
+  .annotationLayer {
     display: none !important;
   }
 }

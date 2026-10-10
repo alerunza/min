@@ -1,3 +1,4 @@
+// Modified for Svelto: help destinations and about label (2026-10-09).
 function buildAppMenu (options = {}) {
   const keyMap = userKeyMap(settings.get('keyMap'))
 
@@ -428,19 +429,19 @@ function buildAppMenu (options = {}) {
         {
           label: l('appMenuReportBug'),
           click: function () {
-            openTabInWindow('https://github.com/minbrowser/min/issues/new')
+            openTabInWindow('https://github.com/alerunza/min/issues/new')
           }
         },
         {
           label: l('appMenuTakeTour'),
           click: function () {
-            openTabInWindow('https://minbrowser.github.io/min/tour/')
+            openTabInWindow('min://app/pages/welcome/index.html')
           }
         },
         {
           label: l('appMenuViewGithub'),
           click: function () {
-            openTabInWindow('https://github.com/minbrowser/min')
+            openTabInWindow('https://github.com/alerunza/min')
           }
         },
         ...(process.platform !== 'darwin' ? [{ type: 'separator' }] : []),
@@ -448,7 +449,7 @@ function buildAppMenu (options = {}) {
           label: l('appMenuAbout').replace('%n', app.name),
           click: function (item, window) {
             var info = [
-              'Min v' + app.getVersion(),
+              'Svelto v' + app.getVersion(),
               'Chromium v' + process.versions.chrome
             ]
             electron.dialog.showMessageBox({

@@ -1,3 +1,4 @@
+// Svelto: cancelled file dialogs return empty results; detached owners are handled.
 /*
 Wraps APIs that are only available in the main process in IPC messages, so that the BrowserWindow can use them
 */
@@ -32,13 +33,17 @@ function showFocusModeDialog2() {
 ipc.handle('showFocusModeDialog2', showFocusModeDialog2)
 
 ipc.handle('showOpenDialog', async function (e, options) {
-  const result = await dialog.showOpenDialog(windows.windowFromContents(e.sender).win, options)
-  return result.filePaths
+  const owner = windows.windowFromContents(e.sender)?.win
+  if (!owner || owner.isDestroyed()) return []
+  const result = await dialog.showOpenDialog(owner, options)
+  return result.canceled ? [] : result.filePaths
 })
 
 ipc.handle('showSaveDialog', async function (e, options) {
-  const result = await dialog.showSaveDialog(windows.windowFromContents(e.sender).win, options)
-  return result.filePath
+  const owner = windows.windowFromContents(e.sender)?.win
+  if (!owner || owner.isDestroyed()) return
+  const result = await dialog.showSaveDialog(owner, options)
+  return result.canceled ? undefined : result.filePath
 })
 
 ipc.handle('addWordToSpellCheckerDictionary', function (e, word) {
@@ -99,7 +104,7 @@ ipc.handle('close', function (e) {
 })
 
 ipc.handle('setFullScreen', function (e, fullScreen) {
-  windows.windowFromContents(e.sender).win.setFullScreen(e, fullScreen)
+  windows.windowFromContents(e.sender).win.setFullScreen(fullScreen)
 })
 
 //workaround for https://github.com/electron/electron/issues/38540

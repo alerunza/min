@@ -9,20 +9,9 @@ var languages = {
 
 */
 
+// Modified for Svelto: English product interface for the initial release (2026-10-09).
 function getCurrentLanguage () {
-  // TODO add a setting to change the language to something other than the default
-
-  var language = 'en-US' // default
-
-  if (typeof navigator !== 'undefined') { // renderer process
-    language = navigator.language
-  } else if (typeof app !== 'undefined') { // main process
-    language = app.getLocale()
-  } else {
-    // nothing worked, fall back to default
-  }
-
-  return language
+  return 'en-US'
 }
 
 var userLanguage = null

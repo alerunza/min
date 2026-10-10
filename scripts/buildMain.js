@@ -1,3 +1,4 @@
+// Modified for Svelto: include the manual tab suspension handler.
 const path = require('path')
 const fs = require('fs')
 
@@ -18,6 +19,7 @@ const modules = [
   'main/download.js',
   'main/UASwitcher.js',
   'main/permissionManager.js',
+  'main/tabSuspension.js',
   'main/prompt.js',
   'main/remoteMenu.js',
   'main/remoteActions.js',

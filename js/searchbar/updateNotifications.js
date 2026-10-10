@@ -1,4 +1,6 @@
-const UPDATE_URL = 'https://minbrowser.org/min/updates/latestVersion.json'
+// Modified for Svelto: no upstream Min update prompts (2026-10-09).
+// Set a Svelto-owned update endpoint when a release channel is ready.
+const UPDATE_URL = null
 
 var settings = require('util/settings/settings.js')
 
@@ -16,6 +18,10 @@ function getUpdateRandomNum () {
 }
 
 function getAvailableUpdates () {
+  if (!UPDATE_URL) {
+    localStorage.removeItem('availableUpdate')
+    return
+  }
   if (settings.get('updateNotificationsEnabled') !== false) {
     console.info('checking for updates')
     fetch(UPDATE_URL, {
@@ -44,6 +50,7 @@ function getAvailableUpdates () {
 }
 
 function showUpdateNotification (text, input, inputFlags) {
+  if (!UPDATE_URL) return
   function displayUpdateNotification () {
     searchbarPlugins.reset('updateNotifications')
     searchbarPlugins.addResult('updateNotifications', {

@@ -1,0 +1,376 @@
+/* Svelto Quiet: macOS toolbar tokens and control states (2026-10-09).
+   Keep the platform-specific Windows/Linux chrome in the existing styles. */
+body.mac {
+  --navbar-height: 52px;
+  --quiet-active: #fffefa;
+  --quiet-muted: #66716a;
+  --quiet-line: #d9dfd7;
+  --quiet-hover: #e9ede6;
+  --quiet-accent: #48614c;
+}
+body.mac.dark-mode {
+  --quiet-active: #414a43;
+  --quiet-muted: #a6b2a8;
+  --quiet-line: #3f4841;
+  --quiet-hover: #303b32;
+  --quiet-accent: #bbd0bc;
+}
+body.mac #navbar {
+  height: var(--navbar-height);
+  align-items: center;
+  padding-block: 10px;
+  padding-right: 12px;
+  gap: 8px;
+}
+body.mac #navbar *, body.mac #switch-task-button {
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  letter-spacing: normal;
+}
+body.mac #navbar:before { background: var(--quiet-line); }
+body.mac #navbar #tabs { height: 32px; min-width: 0; }
+body.mac #tabs #tabs-inner { gap: 5px; align-items: center; }
+body.mac .tab-item {
+  height: 32px;
+  line-height: 32px;
+  min-width: 120px;
+  padding-inline: 11px;
+  gap: 8px;
+  border-radius: 8px;
+  color: var(--quiet-muted);
+  transition: background-color 120ms ease, color 120ms ease, transform 150ms ease;
+}
+body.mac #tabs .tab-item.active {
+  min-width: 160px;
+  background: var(--quiet-active);
+  color: var(--theme-foreground-color);
+}
+body.mac #tabs .tab-item:not(.active):hover { background: var(--quiet-hover); }
+body.mac #navbar.show-dividers .tab-item { border-right-color: var(--quiet-line); }
+body.mac .tab-item .title-container { padding: 0; }
+body.mac .tab-item .title {
+  font-size: 12px;
+  width: 100%;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+body.mac .tab-item .url-element { font-size: 11px; line-height: 14px; top: 16px; }
+body.mac .tab-item.active.has-url:hover .title { font-size: 10px; line-height: 14px; top: 2px; transform: none; }
+body.mac .tab-item .tab-icon-area { gap: 4px; margin-left: 0; }
+body.mac .tab-item .tab-close-button {
+  display: inline-flex;
+  height: 22px;
+  width: 22px;
+  align-self: center;
+  font-size: 16px;
+  border-radius: 5px;
+  opacity: .65;
+}
+body.mac .tab-item .tab-close-button:hover,
+body.mac .tab-item .tab-close-button:focus-visible { opacity: 1; background: var(--quiet-hover); }
+body.mac .tab-item .tab-close-button:after { display: none; }
+body.mac .tab-item.is-private .icon-tab-is-private { display: inline-flex; color: #8865aa; }
+body.mac .tab-item .tab-icon { font-size: 14px; }
+body.mac .tab-item .tab-close-button { font-size: 16px; }
+body.mac .tab-item.gu-mirror { height: 32px !important; margin-top: 10px !important; border-radius: 8px; background: var(--quiet-active) !important; color: var(--theme-foreground-color) !important; }
+body.mac #toolbar-navigation-buttons { width: 30px; flex-shrink: 0; height: 30px; }
+body.mac #toolbar-navigation-buttons.can-go-forward:hover,
+body.mac #toolbar-navigation-buttons.can-go-forward:focus-within { width: 60px; }
+body.mac #navbar .navbar-action-button,
+body.mac #switch-task-button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin: 0;
+  border-radius: 8px;
+  font-size: 18px !important;
+  -webkit-app-region: no-drag;
+}
+body.mac #navbar .navbar-action-button:not(:disabled):hover,
+body.mac #switch-task-button:hover { background: var(--quiet-hover); }
+body.mac #navbar .navbar-action-button:active,
+body.mac #switch-task-button.active { background: var(--quiet-active); color: var(--quiet-accent) !important; }
+body.mac #navbar button:focus-visible,
+body.mac #switch-task-button:focus-visible {
+  outline: 2px solid var(--quiet-accent);
+  outline-offset: -2px;
+}
+body.mac #navbar .navbar-action-button:disabled { opacity: .3; }
+body.mac #forward-button { margin-left: 0; }
+body.mac .navbar-right-actions { margin-right: 38px; flex-shrink: 0; }
+body.mac #switch-task-button { top: 11px; right: 12px; display: flex; align-items: center; justify-content: center; }
+body.mac #switch-task-button svg { width: 17px; height: 17px; margin: 0; }
+body.mac #tab-editor {
+  height: 32px;
+  border-radius: 8px;
+  padding-inline: 11px;
+  background: var(--quiet-active);
+  box-shadow: inset 0 0 0 1px var(--quiet-accent);
+}
+body.mac #tab-editor-input { font-size: 13px; letter-spacing: normal; min-width: 0; }
+body.mac #tab-editor .tab-editor-button { border-radius: 5px; padding: 4px; margin-top: 0; }
+body.mac #tab-editor .tab-editor-button:hover { background: var(--quiet-hover); }
+body.mac .progress-bar-container { top: auto; bottom: 0; height: 2px; }
+body.mac .progress-bar { color: var(--quiet-accent); }
+body.mac #searchbar { padding-top: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  body.mac .tab-item, body.mac #navbar, body.mac #toolbar-navigation-buttons,
+  body.mac #tab-editor { transition: none !important; }
+}
+
+body.mac .tab-item:focus-visible {
+  outline: 2px solid var(--quiet-accent);
+  outline-offset: -2px;
+}
+
+/* Quiet Tasks preserves Min's grouped task list and drag targets. */
+body.mac #task-overlay {
+  background: #f0f1ee !important;
+  color: #29352c;
+  white-space: normal;
+}
+body.mac.dark-mode #task-overlay { background: #252726 !important; color: #edf0ea; }
+body.mac #task-overlay *:not(.i) {
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  letter-spacing: normal;
+}
+body.mac #task-overlay-navbar { flex-shrink: 0; border-color: var(--quiet-line); }
+body.mac .task-search-input-container {
+  width: min(450px, calc(100% - 150px));
+  max-width: none;
+  margin: 0 40px 0 75px;
+  padding: 0;
+  -webkit-app-region: no-drag;
+}
+body.mac .task-search-input-container i { left: 11px; top: 8px; font-size: 15px; color: var(--quiet-muted); }
+body.mac .task-search-input-container input {
+  height: 32px;
+  padding: 6px 30px;
+  font-size: 13px;
+  color: inherit;
+  background: var(--quiet-active);
+  border: 1px solid var(--quiet-line);
+  border-radius: 8px;
+}
+body.mac .task-search-input-container input::placeholder { color: var(--quiet-muted); opacity: 1; }
+body.mac #task-area { padding: 20px 0; min-height: 0; }
+body.mac .task-container {
+  width: calc(100% - 48px);
+  max-width: 880px;
+  border: 0;
+  border-bottom: 1px solid var(--quiet-line);
+  padding: 16px 0;
+}
+body.mac .task-container:not([hidden]) + .task-container { padding-top: 16px; }
+body.mac .task-action-container { gap: 8px; padding: 0; }
+body.mac .task-name {
+  min-width: 0;
+  font-size: 17px;
+  font-weight: 600;
+  opacity: 1;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+body.mac .task-container.selected .task-name { color: var(--quiet-accent); }
+body.mac .task-container.selected .task-collapse-button { display: block; visibility: hidden; }
+body.mac .task-collapse-button,
+body.mac .task-delete-button {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 4px;
+  border-radius: 6px;
+  font-size: 16px !important;
+  opacity: .7;
+}
+body.mac .task-container.collapsed .task-delete-button { opacity: .7; }
+body.mac .task-action-container button:hover { background: var(--quiet-hover); }
+body.mac .task-info-container { padding: 0 8px; color: var(--quiet-muted); }
+body.mac .task-info-container span { font-size: 12px; opacity: 1; }
+body.mac .task-tabs-container { margin-top: 8px; }
+body.mac .task-tab-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 40px 8px 32px;
+  min-height: 40px;
+  border-radius: 6px;
+}
+body.mac .task-tab-item .title { font-size: 13px; flex: 1; min-width: 0; max-width: none; }
+body.mac .task-tab-item .secondary-text {
+  font-size: 12px;
+  color: var(--quiet-muted);
+  max-width: 45%;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.mac .task-tab-item > i, body.mac .task-tab-item .icon-image { left: 8px; top: 12px; width: 16px; height: 16px; font-size: 16px; }
+body.mac .task-tab-item:hover { background: var(--quiet-hover); }
+body.mac .task-tab-item:focus, body.mac .task-tab-item.fakefocus { background: var(--quiet-active); }
+body.mac .task-tab-item[aria-current="page"] { box-shadow: inset 2px 0 var(--quiet-accent); }
+body.mac .task-tab-item .action-button { top: 7px; right: 6px; width: 26px; height: 26px; border-radius: 5px; font-size: 16px; }
+body.mac #task-search-status {
+  flex-shrink: 0;
+  width: calc(100% - 48px);
+  max-width: 880px;
+  margin: 16px auto 0;
+  color: var(--quiet-muted);
+  font-size: 13px;
+}
+body.mac #add-task {
+  flex-shrink: 0;
+  width: calc(100% - 48px);
+  max-width: 880px;
+  margin: 0 auto 20px;
+  padding: 12px;
+  border: 1px solid var(--quiet-line);
+  border-radius: 8px;
+  background: var(--quiet-active);
+  color: inherit;
+  font-size: 13px;
+}
+body.mac #add-task span { font-size: 13px; }
+body.mac #add-task:hover { background: var(--quiet-hover); }
+body.mac #task-overlay .task-delete-warning { border-radius: 6px; padding: 14px; font-size: 13px; white-space: normal; background: var(--quiet-active); }
+body.mac #task-overlay :focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: -2px; }
+body.mac #task-overlay.is-dragging-tab #add-task { border: 2px dashed var(--quiet-accent); }
+body.mac .task-container.sortable-chosen { background: var(--quiet-active); }
+body.mac .task-tab-item.dragging-selected { border-left-color: var(--quiet-accent); background: var(--quiet-hover) !important; }
+@media (max-width: 560px) {
+  body.mac .task-container, body.mac #add-task, body.mac #task-search-status { width: calc(100% - 32px); }
+  body.mac .task-tab-item { gap: 6px; }
+  body.mac .task-tab-item .secondary-text { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.mac #task-overlay, body.mac #task-overlay * { transition: none !important; }
+}
+
+/* Svelto Quiet search: preserve plugin content and in-tab address editing. */
+body.mac #tab-editor-input::placeholder { color: var(--quiet-muted); opacity: 1; }
+body.mac #tab-editor .tab-editor-button:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: -2px; }
+body.mac #searchbar {
+  padding: 8px 24px 12px;
+  background: #f0f1ee;
+  color: #29352c;
+  border-bottom: 1px solid var(--quiet-line);
+  border-radius: 0 0 10px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  max-height: calc(100% - var(--control-space-top) - var(--navbar-height) - 24px);
+  scrollbar-gutter: stable;
+}
+body.mac.dark-theme #searchbar { background: #252726; color: #edf0ea; }
+body.mac #searchbar * { font-size: inherit; font-family: inherit; letter-spacing: normal; }
+body.mac:not(.is-ntp) #searchbar, body.mac.ntp-has-background #searchbar { box-shadow: 0 8px 18px -12px rgba(0, 0, 0, .35); }
+body.mac #searchbar .searchbar-item {
+  min-height: 40px;
+  padding: 10px 38px 10px 34px;
+  border-radius: 6px;
+  transition: none;
+}
+body.mac #searchbar .searchbar-item:hover { background: var(--quiet-hover); }
+body.mac #searchbar .searchbar-item:focus, body.mac #searchbar .searchbar-item.fakefocus {
+  background: var(--quiet-active);
+  box-shadow: inset 2px 0 var(--quiet-accent);
+}
+body.mac #searchbar .searchbar-item:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: -2px; }
+body.mac #searchbar .searchbar-item > i, body.mac #searchbar .searchbar-item .icon-image {
+  left: 11px;
+  right: auto;
+  top: 12px;
+  font-size: 15px;
+  opacity: .75;
+}
+body.mac #searchbar .searchbar-item .icon-image { opacity: 1; }
+body.mac #searchbar .searchbar-item.has-action-button:hover > i,
+body.mac #searchbar .searchbar-item.has-action-button:hover .icon-image { display: block; }
+body.mac #searchbar .searchbar-item .secondary-text { color: var(--quiet-muted); opacity: 1; padding-left: 16px; }
+body.mac #searchbar .searchbar-item .description-block { line-height: 1.4; max-height: 2.8em; margin-right: 0; }
+body.mac #searchbar .searchbar-item:focus .description-block { max-height: none; }
+body.mac #searchbar .searchbar-item .action-button { width: 28px; height: 28px; top: 6px; right: 6px; border-radius: 5px; }
+body.mac #searchbar .searchbar-item .action-button:hover, body.mac #searchbar .searchbar-item .action-button:focus { background: var(--quiet-hover); }
+body.mac #searchbar .searchbar-heading { font-size: 12px; padding: 12px 10px 6px; color: var(--quiet-muted); opacity: 1; }
+body.mac #searchbar .searchbar-floating-button, body.mac #searchbar .searchbar-shortcut,
+body.mac #searchbar .text-action-button-row button { border: 1px solid var(--quiet-line); border-radius: 6px; background: var(--quiet-active); font-size: 12px !important; }
+body.mac #searchbar .searchbar-shortcut { padding: 6px 10px; margin: 4px; }
+body.mac #searchbar .searchbar-shortcut:hover, body.mac #searchbar .searchbar-floating-button:hover { background: var(--quiet-hover); }
+body.mac #searchbar button:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: -2px; }
+@media (max-width: 650px) {
+  body.mac #searchbar { padding-inline: 8px; }
+  body.mac #searchbar .searchbar-item .title, body.mac #searchbar .searchbar-item .title.wide { max-width: 100%; }
+  body.mac #searchbar .searchbar-item .secondary-text { padding-left: 0; max-height: none; line-height: 1.4; }
+}
+
+/* Svelto Quiet collections retain the search panel and tagged bookmark model. */
+body.mac #searchbar .collection-header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 6px 10px 10px; border-bottom: 1px solid var(--quiet-line); margin-bottom: 4px; }
+body.mac #searchbar .collection-header h2 { font-size: 17px; font-weight: 600; }
+body.mac #searchbar .collection-status { color: var(--quiet-muted); font-size: 12px; }
+body.mac #searchbar .collection-header .searchbar-floating-button { position: static; margin-left: auto; padding: 6px 10px; opacity: 1; }
+body.mac #searchbar .history-item .action-button, body.mac #searchbar .bookmark-item .action-button { opacity: .75; }
+body.mac #searchbar .history-item .action-button:hover, body.mac #searchbar .bookmark-item .action-button:hover { opacity: 1; }
+body.mac #bookmark-tag-bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 10px; }
+body.mac #searchbar .tag { margin: 0; padding: 5px 9px; border: 1px solid var(--quiet-line); border-radius: 6px; background: var(--quiet-active); opacity: 1; font-size: 12px; }
+body.mac #searchbar .tag.suggested { background: transparent; color: var(--quiet-muted); }
+body.mac #searchbar .tag.selected { color: var(--quiet-accent); border-color: var(--quiet-accent); }
+body.mac #searchbar .tag:hover, body.mac #searchbar .tag:focus { background: var(--quiet-hover); }
+body.mac #searchbar .bookmark-editor:not(.simplified) { padding: 12px 44px 12px 12px; border: 1px solid var(--quiet-line); border-radius: 8px; box-shadow: none; background: var(--quiet-active) !important; margin-block: 6px; }
+body.mac #searchbar .bookmark-editor .title { max-width: 100%; white-space: normal; }
+body.mac #searchbar .bookmark-editor .bookmark-url { color: var(--quiet-muted); opacity: 1; overflow-wrap: anywhere; font-size: 12px; margin: 4px 0 10px; }
+body.mac #searchbar .bookmark-editor .tag-edit-area { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+body.mac #searchbar .tag-edit-area .tag-input { margin: 0; width: 180px; max-width: 100%; padding: 6px 9px; border: 1px solid var(--quiet-line); border-radius: 6px; background: var(--quiet-active); color: inherit; opacity: 1; }
+body.mac #searchbar .tag-input::placeholder { color: var(--quiet-muted); opacity: 1; }
+body.mac #searchbar .tag-input:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: -2px; }
+body.mac #searchbar .bookmark-editor .bookmark-delete-button { top: auto; bottom: 8px; }
+body.mac #searchbar .bookmark-editor.simplified .bookmark-delete-button { margin-left: 0; }
+
+/* The 40 px download shelf remains synchronized with webview margins. */
+body.mac #download-bar { height: 40px; align-items: center; background: #f0f1ee; color: #29352c; border-color: var(--quiet-line); padding-inline: 8px; gap: 8px; }
+body.mac.dark-mode #download-bar { background: #252726; color: #edf0ea; }
+body.mac #download-bar * { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; letter-spacing: normal; }
+body.mac #download-container { height: 39px; align-items: center; gap: 6px; }
+body.mac .download-item { height: 32px; flex: 0 0 260px; width: 260px; min-width: 200px; max-width: 300px; padding: 3px 38px 3px 9px; border: 1px solid var(--quiet-line); border-radius: 6px; line-height: 1.2; }
+body.mac .download-item:hover, body.mac .download-item.completed:active { background: var(--quiet-hover); }
+body.mac #download-bar .download-file-button { display: block; width: 100%; line-height: 1.2; }
+body.mac #download-bar .download-file-button:hover { background: transparent; }
+body.mac #download-bar .download-title { font-size: 12px; opacity: 1; }
+body.mac #download-bar .download-info { font-size: 10px; line-height: 12px; margin: 0; padding: 0; color: var(--quiet-muted); opacity: 1; }
+body.mac .download-item .download-info.detailed { display: none; }
+body.mac .download-item:hover .download-info:not(.detailed) { display: none; }
+body.mac .download-item:hover .download-info.detailed { display: block; }
+body.mac .download-item .download-info:not(.detailed) { display: block; }
+body.mac .download-progress { top: auto; bottom: 0; left: 0; width: 100%; height: 2px; margin: 0; background: var(--quiet-accent); border-radius: 0; transition: transform .2s; }
+body.mac .download-progress.indeterminate { opacity: .45; background: repeating-linear-gradient(90deg, var(--quiet-accent) 0 8px, transparent 8px 12px); }
+body.mac .download-action-button { right: 5px; width: 24px; height: 24px; top: 3px; font-size: 14px; border-radius: 4px; opacity: .85; }
+body.mac #download-close-button { width: 26px; height: 26px; margin: 0; border-radius: 5px; font-size: 16px; flex-shrink: 0; }
+body.mac #download-bar button:hover { background: var(--quiet-hover); }
+body.mac #download-bar button:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: -2px; }
+body.mac #download-bar .open-failed .download-info { white-space: normal; }
+@media (max-width: 650px) {
+  body.mac #searchbar .collection-header { gap: 6px 10px; }
+  body.mac #searchbar .collection-header .searchbar-floating-button { margin-left: 0; }
+}
+
+/* Svelto Quiet new tab: a small welcome, with the address field kept in the tab. */
+body.mac #ntp-welcome { position: absolute; top: 39%; width: 100%; padding: 24px; text-align: center; color: var(--quiet-muted); }
+body.mac #ntp-welcome h1 { font-size: 28px; font-weight: 500; letter-spacing: -0.7px; color: var(--theme-foreground-color); }
+body.mac #ntp-welcome p { font-size: 13px; margin-top: 10px; letter-spacing: 0; }
+body.ntp-has-background #ntp-welcome { display: none; }
+body.mac #ntp-background-controls { bottom: 20px; right: 20px; display: flex; gap: 6px; }
+body.mac #ntp-background-controls button { width: 32px; height: 32px; line-height: 32px; border: 1px solid var(--quiet-line); border-radius: 6px; background: var(--quiet-active); color: var(--quiet-muted); opacity: 1; box-shadow: none; }
+body.mac #ntp-background-controls button .i { font-size: 16px; }
+body.mac #ntp-background-controls button:hover { background: var(--quiet-hover); }
+body.mac #ntp-background-controls button:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: 3px; }
+#ntp-background-error { position: absolute; bottom: 64px; right: 20px; left: 20px; margin-left: auto; max-width: 360px; padding: 12px; border-radius: 6px; background: #fffefa; color: #29352c; font-size: 13px; }
+body:not(.is-ntp) #ntp-content { visibility: hidden; pointer-events: none; }
+body:not(.mac) #ntp-welcome { display: none; }
+
+/* Svelto: permission actions retain Min's compact in-tab indicators. */
+body.mac .permission-request-icon:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: 1px; background: var(--quiet-hover); }
+body.mac .permission-request-icon { border-radius: 4px; }
+body.mac .permission-deny-icon:hover { background: var(--quiet-hover); }
+
+/* Sleeping tabs retain their place; the underline also distinguishes the state without color. */
+.tab-item.is-sleeping .title { text-decoration: underline dotted; text-underline-offset: 3px; }

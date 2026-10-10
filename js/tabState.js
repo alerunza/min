@@ -1,7 +1,13 @@
 const TaskList = require('tabState/task.js')
 
-function initialize () {
-  window.tasks = new TaskList()
+// Keep subscribed UI/sync/checkpoint listeners when discarding a failed restore.
+function initialize (preserveListeners = false) {
+  if (preserveListeners && window.tasks) {
+    window.tasks.tasks = []
+    window.tasks.pendingCallbacks = []
+  } else {
+    window.tasks = new TaskList()
+  }
   window.tabs = undefined
 }
 

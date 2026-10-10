@@ -1,620 +1,234 @@
+// Svelto: use PDF.js 4 page/text/link APIs with bounded canvases and explicit load errors.
 import '../../node_modules/pdfjs-dist/build/pdf.min.mjs'
 import '../../node_modules/pdfjs-dist/web/pdf_viewer.mjs'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = '../../node_modules/pdfjs-dist/build/pdf.worker.mjs'
+const url = new URLSearchParams(window.location.search).get('url')
+const pages = document.getElementById('pdf-pages')
+const counter = document.querySelector('#page-counter input')
+const total = document.getElementById('total')
+const progress = document.getElementById('progress-bar')
+const eventBus = new pdfjsViewer.EventBus()
+const pageViews = []
+const rendering = new Map()
+const extraTextLayers = new Map()
+let pdf = null
+let currentPage = 0
+let printing = false
+const printScales = new Map()
+let resizeTimer
+let resizeWork = Promise.resolve()
+let loaded = false
+counter.setAttribute('aria-label', l('PDFPageNumber'))
+counter.setAttribute('inputmode', 'numeric')
+counter.disabled = true
 
-var url = new URLSearchParams(window.location.search.replace('?', '')).get('url')
-
-var eventBus = new pdfjsViewer.EventBus()
-
-/* page counter UI */
-var pageCounter = {
-  init: function () {
-    pageCounter.container = document.getElementById('page-counter')
-    pageCounter.input = pageCounter.container.getElementsByTagName('input')[0]
-    pageCounter.totalEl = pageCounter.container.querySelector('#total')
-
-    pageCounter.container.addEventListener('click', function () {
-      pageCounter.input.focus()
-      pageCounter.input.select()
-    })
-
-    pageCounter.input.addEventListener('change', function (e) {
-      var pageIndex = parseInt(this.value) - 1
-      if (pageViews[pageIndex] && pageViews[pageIndex].div) {
-        pageViews[pageIndex].div.scrollIntoView()
-      }
-      updateVisiblePages()
-      pageCounter.update()
-      pageCounter.input.blur()
-    })
-  },
-  update: function () {
-    pageCounter.input.value = currentPage + 1
-    pageCounter.totalEl.textContent = pageCount
-  }
-}
-
-pageCounter.init()
-
-/* progress bar UI */
-
-var progressBar = {
-  element: document.getElementById('progress-bar'),
-  enabled: false,
-  progress: 0,
-  incrementProgress: function (progress) { // progress: amount by which to increase the progress bar (number 0-1, 1 = 100%)
-    progressBar.progress += progress
-
-    if (!progressBar.enabled) {
-      return
-    }
-
-    if (progressBar.progress >= 1) {
-      progressBar.enabled = false
-      progressBar.element.style.transform = 'translateX(0%)'
-      setTimeout(function () {
-        progressBar.element.hidden = true
-      }, 200)
-      return
-    }
-
-    progressBar.element.hidden = false
-
-    var width = progressBar.progress * 90
-    progressBar.element.style.transform = 'translateX(-' + (100 - width) + '%)'
-  },
-  init: function () {
-    setTimeout(function () {
-      if (!pdf) {
-        progressBar.enabled = true
-        progressBar.incrementProgress(0.05)
-
-        var loadingFakeInterval = setInterval(function () { // we can't reliably determine actual download progress, so instead we make the bar move very slowly until the first page has loaded, then show how many pages have rendered
-          if (progressBar.progress < 0.125) {
-            progressBar.incrementProgress(0.002)
-          } else {
-            clearInterval(loadingFakeInterval)
-          }
-        }, 250)
-      }
-    }, 3000)
-  }
-}
-
-progressBar.init()
-
-var downloadButton = document.getElementById('download-button')
-
-downloadButton.addEventListener('click', function () {
-  downloadPDF()
+const linkService = new pdfjsViewer.PDFLinkService({ eventBus, externalLinkTarget: 2 })
+linkService.setViewer({
+  get currentPageNumber () { return currentPage + 1 },
+  set currentPageNumber (number) { goToPage(number) },
+  get pagesCount () { return pageViews.length },
+  getPageView: index => pageViews[index],
+  scrollPageIntoView: ({ pageNumber }) => goToPage(pageNumber),
+  isPageVisible: number => number === currentPage + 1,
+  isPageCached: number => !!pageViews[number - 1]?.canvas,
+  pageLabelToPageNumber: label => Number(label)
 })
 
-document.querySelectorAll('.side-gutter').forEach(function (el) {
-  el.addEventListener('mouseenter', function () {
-    showViewerUI()
-  })
-  el.addEventListener('mouseleave', function () {
-    hideViewerUI()
-  })
-})
-
-function showViewerUI () {
-  document.querySelectorAll('.viewer-ui').forEach(el => el.classList.remove('hidden'))
-  pageCounter.update()
-}
-
-const hideViewerUI = debounce(function () {
-  if (!document.querySelector('.side-gutter:hover')) {
-    document.querySelectorAll('.viewer-ui').forEach(el => el.classList.add('hidden'))
-  }
-}, 600)
-
-function updateGutterWidths () {
-  var gutterWidth
-  if (!pageViews[0]) { // PDF hasn't loaded yet
-    gutterWidth = 64
-  } else {
-    gutterWidth = Math.round(Math.max(64, (window.innerWidth - pageViews[0].viewport.width) / 2)) - 2
-  }
-
-  document.querySelectorAll('.side-gutter').forEach(function (el) {
-    el.style.width = gutterWidth + 'px'
-  })
-}
-
-function createContainer () {
-  var el = document.createElement('div')
-  el.classList.add('page-container')
-  document.body.appendChild(el)
-  return el
-}
-
-var pageBuffer = 15
-
-/* adapted from PDFPageView.draw(), without actually painting the page onto the canvas */
-function setupPageDom (pageView) {
-  var pdfPage = pageView.pdfPage
-  var div = pageView.div
-  var canvasWrapper = document.createElement('div')
-  canvasWrapper.style.width = div.style.width
-  canvasWrapper.style.height = div.style.height
-  canvasWrapper.classList.add('canvasWrapper')
-  if (pageView.annotationLayer && pageView.annotationLayer.div && !pageView.annotationLayer.div.parentNode) {
-    div.appendChild(pageView.annotationLayer.div)
-  }
-  if (pageView.annotationLayer && pageView.annotationLayer.div) {
-    div.insertBefore(canvasWrapper, pageView.annotationLayer.div)
-  } else {
-    div.appendChild(canvasWrapper)
-  }
-  var textLayer = null
-  if (pageView.textLayerFactory) {
-    var textLayerDiv = document.createElement('div')
-    textLayerDiv.className = 'textLayer'
-    textLayerDiv.style.width = canvasWrapper.style.width
-    textLayerDiv.style.height = canvasWrapper.style.height
-    if (pageView.annotationLayer && pageView.annotationLayer.div) {
-      div.insertBefore(textLayerDiv, pageView.annotationLayer.div)
-    } else {
-      div.appendChild(textLayerDiv)
-    }
-    textLayer = pageView.textLayerFactory.createTextLayerBuilder(textLayerDiv, pageView.id - 1, pageView.viewport, pageView.enhanceTextSelection)
-  }
-  if (pageView.annotationLayerFactory) {
-    var annotationLayer = pageView.annotationLayerFactory.createAnnotationLayerBuilder(div, pdfPage, null, null, false, pageView.l10n, null, null, null, null, null)
-  }
-  pageView.textLayer = textLayer
-  pageView.annotationLayer = annotationLayer
-  setUpPageAnnotationLayer(pageView)
-}
-
-function DefaultTextLayerFactory () { }
-DefaultTextLayerFactory.prototype = {
-  createTextLayerBuilder: function (textLayerDiv, pageIndex, viewport,
-    enhanceTextSelection) {
-    return new pdfjsViewer.TextLayerBuilder({
-      textLayerDiv: textLayerDiv,
-      pageIndex: pageIndex,
-      viewport: viewport,
-      enhanceTextSelection: true,
-      eventBus: eventBus
-    })
-  }
-}
-
-var pageViews = []
-var pdf = null
-
-const updateCachedPages = throttle(function () {
-  if (currentPage == null) {
+function goToPage (number) {
+  if (!Number.isInteger(number) || !pageViews[number - 1]) {
+    counter.value = currentPage + 1
     return
   }
-
-  if (!pageViews[currentPage].canvas) {
-    redrawPageCanvas(currentPage)
-  }
-
-  for (var i = 0; i < pageViews.length; i++) {
-    (function (i) {
-      if (i === currentPage) {
-        // already checked above
-        return
-      }
-      if (Math.abs(i - currentPage) > pageBuffer && pageViews[i].canvas) {
-        pageViews[i].canvas.remove()
-        pageViews[i].canvas = null
-      }
-      if (Math.abs(i - currentPage) < pageBuffer && !pageViews[i].canvas) {
-        redrawPageCanvas(i)
-      }
-    })(i)
-  }
-}, 500)
-
-var pageCount
-
-function setUpPageAnnotationLayer (pageView) {
-  if (pageView.annotationLayer) {
-    pageView.annotationLayer.linkService.goToDestination = async function (dest) {
-      // Adapted from https://github.com/mozilla/pdf.js/blob/8ac0ccc2277a7c0c85d6fec41c0f3fc3d1a2d232/web/pdf_link_service.js#L238
-      let explicitDest
-      if (typeof dest === 'string') {
-        explicitDest = await pdf.getDestination(dest)
-      } else {
-        explicitDest = await dest
-      }
-
-      const destRef = explicitDest[0]
-      let pageNumber
-
-      if (typeof destRef === 'object' && destRef !== null) {
-        pageNumber = await pdf.getPageIndex(destRef)
-      } else if (Number.isInteger(destRef)) {
-        pageNumber = destRef + 1
-      }
-
-      pageViews[pageNumber].div.scrollIntoView()
-    }
-  }
+  currentPage = number - 1
+  pageViews[currentPage].div.scrollIntoView({ block: 'start' })
+  counter.value = number
+  updateVisiblePages()
 }
-
-pdfjsLib.getDocument({ url: url, withCredentials: true }).promise.then(async function (_pdf) {
-  pdf = _pdf
-
-  pageCount = pdf.numPages
-
-  if (pageCount < 25) {
-    pageBuffer = 25
-  } else {
-    pageBuffer = 4
-  }
-
-  pdf.getMetadata().then(function (metadata) {
-    document.title = metadata.Title || url.split('/').slice(-1)
-  })
-
-  for (var i = 1; i <= pageCount; i++) {
-    var pageNumber = i
-
-    await pdf.getPage(pageNumber).then(function (page) {
-      progressBar.incrementProgress(1 / pageCount)
-
-      var defaultScale = 1.15
-      var minimumPageWidth = 625 // px
-
-      var scale = defaultScale
-
-      var viewport = page.getViewport({ scale: scale })
-
-      if (viewport.width * 1.5 > window.innerWidth) {
-        scale = (window.innerWidth / viewport.width) * 0.75
-
-        viewport = page.getViewport({ scale: scale })
-      }
-
-      if (viewport.width * 1.33 < minimumPageWidth) {
-        scale = (minimumPageWidth / viewport.width) * scale * 0.75
-        viewport = page.getViewport({ scale: scale })
-      }
-
-      if (pageCount > 200) {
-        scale = Math.min(scale, 1.1)
-        viewport = page.getViewport({ scale: scale })
-      }
-
-      var pageContainer = createContainer()
-      var pdfPageView = new pdfjsViewer.PDFPageView({
-        container: pageContainer,
-        id: pageNumber,
-        scale: scale,
-        defaultViewport: viewport,
-        eventBus: eventBus,
-        textLayerFactory: new DefaultTextLayerFactory(),
-        // annotationLayerFactory: new pdfjsViewer.DefaultAnnotationLayerFactory()
-      })
-      pdfPageView.setPdfPage(page)
-      pageViews.push(pdfPageView)
-
-      if (pageNumber === 1) {
-        updateGutterWidths()
-      }
-
-      (function (pageNumber, pdfPageView) {
-        setTimeout(function () {
-          if (pageNumber < pageBuffer || (currentPage && Math.abs(currentPage - pageNumber) < pageBuffer)) {
-            pageContainer.classList.add('loading')
-            pdfPageView.draw().then(function () { setUpPageAnnotationLayer(pdfPageView) }).then(function () {
-              pageContainer.classList.remove('loading')
-              if (pageNumber === 1) {
-                showViewerUI()
-                setTimeout(function () {
-                  hideViewerUI()
-                }, 4000)
-              }
-            })
-            setTimeout(function () {
-              pageContainer.classList.remove('loading')
-            }, 2000)
-          } else {
-            setupPageDom(pdfPageView)
-            requestIdleCallback(function () {
-              pdfPageView.pdfPage.getTextContent({ normalizeWhitespace: true }).then(function (text) {
-                pdfPageView.textLayer.setTextContent(text)
-                pdfPageView.textLayer.render(0)
-                pdfPageView.annotationLayer.render(pdfPageView.viewport, 'display')
-              })
-            }, { timeout: 10000 })
-          }
-        }, 100 * (pageNumber - 1))
-      })(pageNumber, pdfPageView)
-    })
-  }
-}).catch(function (e) {
-  console.warn('error while loading PDF', e)
-  // we can't display a preview, offer to download instead
-  downloadPDF()
+counter.addEventListener('change', () => goToPage(Number(counter.value)))
+counter.addEventListener('keydown', event => {
+  if (event.key === 'Enter') { goToPage(Number(counter.value)); counter.blur() }
 })
+counter.addEventListener('focus', () => counter.select())
+function downloadPDF () { window.postMessage({ message: 'downloadFile', url }) }
+document.getElementById('download-button').addEventListener('click', downloadPDF)
+document.getElementById('pdf-error-download').addEventListener('click', downloadPDF)
+document.getElementById('pdf-retry').addEventListener('click', () => window.location.reload())
 
-var isFindInPage = false
-
-var currentPage = null
-
+function scaleForPage (page) {
+  const width = page.getViewport({ scale: 1 }).width * (4 / 3)
+  return Math.min(1.15, Math.max(1, window.innerWidth - 32) / width)
+}
+function reportError (error) {
+  console.warn('PDF preview failed', error)
+  progress.hidden = true
+  pages.setAttribute('aria-busy', 'false')
+  document.getElementById('pdf-error').hidden = false
+}
+async function renderText (view) {
+  if (rendering.has(view.id)) await rendering.get(view.id)
+  if (view.textLayer?.renderingDone) return
+  if (extraTextLayers.has(view.id)) return extraTextLayers.get(view.id).ready
+  const layer = new pdfjsViewer.TextLayerBuilder({ onAppend: div => view.div.appendChild(div) })
+  extraTextLayers.set(view.id, layer)
+  layer.ready = (async () => {
+    const content = await view.pdfPage.getTextContent()
+    if (extraTextLayers.get(view.id) !== layer) return
+    layer.setTextContentSource(content)
+    await layer.render(view.viewport)
+  })().catch(error => {
+    if (extraTextLayers.get(view.id) !== layer) return
+    extraTextLayers.delete(view.id)
+    throw error
+  })
+  return layer.ready
+}
+async function drawPage (view) {
+  if (rendering.has(view.id)) return rendering.get(view.id)
+  if (view.canvas) return
+  const task = (async () => {
+    extraTextLayers.get(view.id)?.cancel()
+    extraTextLayers.get(view.id)?.div.remove()
+    extraTextLayers.delete(view.id)
+    view.reset()
+    const textDone = new Promise(resolve => {
+      function onText (event) {
+        if (event.pageNumber !== view.id) return
+        eventBus.off('textlayerrendered', onText)
+        resolve()
+      }
+      eventBus.on('textlayerrendered', onText)
+    })
+    await view.draw()
+    await textDone
+  })().catch(error => {
+    if (error.name !== 'RenderingCancelledException') reportError(error)
+  }).finally(() => rendering.delete(view.id))
+  rendering.set(view.id, task)
+  return task
+}
 function updateVisiblePages () {
-  if (isPrinting) {
-    return
+  if (!loaded || printing || !pageViews.length) return
+  let closest = Infinity
+  for (let i = 0; i < pageViews.length; i++) {
+    const rect = pageViews[i].div.getBoundingClientRect()
+    const distance = Math.abs(rect.top - 72)
+    if (rect.bottom > 56 && distance < closest) { closest = distance; currentPage = i }
   }
-
-  var pageRects = new Array(pageViews.length)
-
-  for (var i = 0; i < pageViews.length; i++) {
-    pageRects[i] = pageViews[i].div.getBoundingClientRect()
-  }
-
-  var ih = window.innerHeight + 80
-  var innerHeight = window.innerHeight
-
-  var visiblePages = []
-
-  for (var i = 0; i < pageViews.length; i++) {
-    var rect = pageRects[i]
-    var textLayer = pageViews[i].textLayer
-
-    if (!isFindInPage && (rect.bottom < -80 || rect.top > ih)) {
-      pageViews[i].div.style.visibility = 'hidden'
-      if (textLayer) {
-        textLayer.div.style.display = 'none'
-      }
-    } else {
-      pageViews[i].div.style.visibility = 'visible'
-      if (textLayer) {
-        textLayer.div.style.display = 'block'
-      }
-
-      if ((rect.top >= 0 && (innerHeight - rect.top) > innerHeight / 2) || (rect.bottom <= innerHeight && rect.bottom > innerHeight / 2) || (rect.top <= 0 && rect.bottom >= innerHeight)) {
-        currentPage = i
-      }
+  if (document.activeElement !== counter) counter.value = currentPage + 1
+  for (let i = 0; i < pageViews.length; i++) {
+    const view = pageViews[i]
+    if (Math.abs(i - currentPage) <= 2) {
+      drawPage(view)
+    } else if (view.canvas && !rendering.has(view.id)) {
+      // Keep searchable/selectable text and links; release the expensive bitmap.
+      view.canvas.width = view.canvas.height = 0
+      view.canvas.remove()
+      view.canvas = null
     }
   }
-
-  if (currentPage !== undefined) {
-    updateCachedPages(currentPage)
-  }
 }
-
-window.addEventListener('scroll', throttle(function () {
-  pageCounter.update()
-  updateVisiblePages()
-}, 50))
-
-/* keep the UI size constant, regardless of the zoom level.
-It would probably be better to add API's in Min for this. */
-
-window.addEventListener('resize', function () {
-  // this works in Chromium and Safari, but not in Firefox, and it will probably break at some point.
-  window.zoomLevel = window.outerWidth / window.innerWidth
-
-  // make UI elements stay a constant size regardless of zoom level
-  document.querySelectorAll('.viewer-ui').forEach(function (el) {
-    el.style.zoom = 1 / zoomLevel
-  })
-
-  updateGutterWidths()
+let scrollTimer
+window.addEventListener('scroll', () => {
+  clearTimeout(scrollTimer)
+  scrollTimer = setTimeout(updateVisiblePages, 50)
 })
-
-function redrawPageCanvas (i, cb) {
-  var canvasWrapperNode = pageViews[i].div.getElementsByClassName('canvasWrapper')[0]
-  if (!canvasWrapperNode) {
-    return
+const ready = (async () => {
+  const task = pdfjsLib.getDocument({ url, withCredentials: true })
+  task.onProgress = ({ loaded, total }) => {
+    if (total) progress.style.transform = 'translateX(' + (-100 + 100 * loaded / total) + '%)'
   }
-  pageViews[i].reset()
-  pageViews[i].draw().then(function () { setUpPageAnnotationLayer(pageViews[i]) }).then(cb)
-}
-
-var isRedrawing = false
-
-function redrawAllPages () {
-  if (isRedrawing) {
-    console.log('ignoring redraw')
-    return
+  pdf = await task.promise
+  linkService.setDocument(pdf)
+  total.textContent = pdf.numPages
+  const metadata = await pdf.getMetadata().catch(() => ({ info: {} }))
+  document.title = metadata.info?.Title || new URL(url).pathname.split('/').pop() || 'PDF'
+  for (let number = 1; number <= pdf.numPages; number++) {
+    const page = await pdf.getPage(number)
+    const scale = scaleForPage(page)
+    const container = document.createElement('div')
+    container.className = 'page-container'
+    pages.appendChild(container)
+    const view = new pdfjsViewer.PDFPageView({
+      container, id: number, scale,
+      defaultViewport: page.getViewport({ scale }), eventBus,
+      layerProperties: { linkService, annotationStorage: pdf.annotationStorage, enableScripting: false }
+    })
+    view.setPdfPage(page)
+    view.div.style.scrollMarginTop = '72px'
+    pageViews.push(view)
+    if (number <= 3) await drawPage(view)
+    else await renderText(view)
   }
-
-  isRedrawing = true
-
-  var completedPages = 0
-  function pageCompleteCallback () {
-    completedPages++
-    if (completedPages === Math.min(pageCount, pageBuffer)) {
-      isRedrawing = false
-    }
-  }
-
-  var visiblePageList = []
-  var invisiblePageList = []
-
-  // redraw the currently visible pages first
-
-  for (var i = 0; i < pageViews.length; i++) {
-    if (!pageViews[i].canvas) {
-      continue
-    }
-    var rect = pageViews[i].div.getBoundingClientRect()
-    // if the page is visible, add it to the beginning of the redraw list
-    if (rect.top < window.innerHeight && rect.bottom > 0) {
-      visiblePageList.push(pageViews[i])
-    } else {
-      invisiblePageList.push(pageViews[i])
-    }
-  }
-
-  var redrawList = visiblePageList.concat(invisiblePageList)
-
-  for (var i = 0; i < redrawList.length; i++) {
-    (function (i) {
-      requestIdleCallback(function () {
-        redrawPageCanvas(redrawList[i].id - 1, pageCompleteCallback)
-      })
-    })(i)
-  }
-}
-
-var lastPixelRatio = window.devicePixelRatio
-window.addEventListener('resize', debounce(function () {
-  // update visible pages in case the page size was increased
+  loaded = true
+  counter.disabled = false
+  counter.value = 1
+  progress.hidden = true
+  pages.setAttribute('aria-busy', 'false')
   updateVisiblePages()
+})().catch(reportError)
 
-  if (window.devicePixelRatio !== lastPixelRatio) { // if the page was zoomed
-    lastPixelRatio = window.devicePixelRatio
-
-    redrawAllPages()
-    console.log('redraw triggered')
-  }
-}, 750))
-
-// https://remysharp.com/2010/07/21/throttling-function-calls
-
-function debounce (fn, delay) {
-  var timer = null
-  return function () {
-    var context = this
-    var args = arguments
-    clearTimeout(timer)
-    timer = setTimeout(function () {
-      fn.apply(context, args)
-    }, delay)
-  }
-}
-
-function throttle (fn, threshhold, scope) {
-  threshhold || (threshhold = 250)
-  var last,
-    deferTimer
-  return function () {
-    var context = scope || this
-
-    var now = +new Date()
-    var args = arguments
-    if (last && now < last + threshhold) {
-      // hold on to it
-      clearTimeout(deferTimer)
-      deferTimer = setTimeout(function () {
-        last = now
-        fn.apply(context, args)
-      }, threshhold)
-    } else {
-      last = now
-      fn.apply(context, args)
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(() => {
+    resizeWork = resizeWork.then(async () => {
+    if (!loaded || printing) return
+    const selected = currentPage
+    await Promise.all([...rendering.values()])
+    for (const view of pageViews) {
+      const scale = scaleForPage(view.pdfPage)
+      if (Math.abs(view.scale - scale) < 0.001) continue
+      extraTextLayers.get(view.id)?.cancel()
+      extraTextLayers.get(view.id)?.div.remove()
+      extraTextLayers.delete(view.id)
+      view.update({ scale })
+      view.reset()
+      if (Math.abs(view.id - 1 - selected) <= 2) await drawPage(view)
+      else await renderText(view)
     }
+    goToPage(selected + 1)
+    }).catch(reportError)
+  }, 200)
+})
+async function startFindInPage () {
+  await ready
+  for (const view of pageViews) await renderText(view)
+  return true
+}
+function endFindInPage () { updateVisiblePages() }
+async function printPDF () {
+  await ready
+  if (!pdf) return
+  // Preserve Min's download fallback for documents too large to print in memory.
+  if (pageViews.length > 100) { downloadPDF(); return }
+  printing = true
+  await Promise.all([...rendering.values()])
+  try {
+    for (const view of pageViews) {
+      printScales.set(view.id, view.scale)
+      view.update({ scale: Math.max(view.scale, 3.125 / window.devicePixelRatio) })
+      view.reset()
+      await drawPage(view)
+    }
+    window.print()
+  } catch (error) {
+    restoreAfterPrint()
+    reportError(error)
   }
 }
-
-function downloadPDF () {
-  window.postMessage({ message: 'downloadFile', url })
-}
-
-/* printing */
-
-var isPrinting = false
-
-var printPreviousScaleList = []
-
-function afterPrintComplete () {
-  for (var i = 0; i < pageViews.length; i++) {
-    pageViews[i].viewport = pageViews[i].viewport.clone({ scale: printPreviousScaleList[i] * (4 / 3) })
-    pageViews[i].cssTransform({target: pageViews[i].canvas})
+function restoreAfterPrint () {
+  if (!printing) return
+  for (const view of pageViews) {
+    view.update({ scale: printScales.get(view.id) || scaleForPage(view.pdfPage) })
+    view.reset()
+    extraTextLayers.get(view.id)?.cancel()
+    extraTextLayers.get(view.id)?.div.remove()
+    extraTextLayers.delete(view.id)
   }
-  printPreviousScaleList = []
-  isPrinting = false
+  printScales.clear()
+  printing = false
   updateVisiblePages()
-  redrawAllPages()
+  startFindInPage().catch(reportError)
 }
-
-function printPDF () {
-  var begunCount = 0
-  var doneCount = 0
-
-  isPrinting = true
-
-  function onAllRenderingDone () {
-    // we can print the document now
-    setTimeout(function () {
-      window.print()
-    }, 100)
-  }
-
-  function onPageRenderComplete () {
-    doneCount++
-    if (doneCount === begunCount) {
-      onAllRenderingDone()
-    }
-  }
-
-  // we can't print very large documents because of memory usage, so offer to download the file instead
-  if (pageCount > 100) {
-    isPrinting = false
-    downloadPDF()
-  } else {
-    var minimumAcceptableScale = 3.125 / devicePixelRatio
-    // redraw each page at a high-enough scale for printing
-    for (var i = 0; i < pageViews.length; i++) {
-      (function (i) {
-        printPreviousScaleList.push(pageViews[i].scale)
-        var needsScaleChange = pageViews[i].scale < minimumAcceptableScale
-
-        if (needsScaleChange) {
-          pageViews[i].viewport = pageViews[i].viewport.clone({ scale: minimumAcceptableScale * (4 / 3) })
-        }
-
-        if (needsScaleChange || !pageViews[i].canvas) {
-          begunCount++
-          redrawPageCanvas(i, function () {
-            if (needsScaleChange) {
-              pageViews[i].cssTransform({target: pageViews[i].canvas})
-            }
-            onPageRenderComplete()
-          })
-        }
-      })(i)
-    }
-    if (begunCount === 0) {
-      // we don't have to redraw any pages
-      onAllRenderingDone()
-    }
-  }
-}
-
-var mediaQueryList = window.matchMedia('print')
-mediaQueryList.onchange = function (mql) {
-  if (!mql.matches) {
-    setTimeout(function () {
-      afterPrintComplete()
-    }, 1000)
-  }
-}
-
-/* find in page mode - make all pages visible so that Chromium's search can search the whole PDF */
-
-function startFindInPage () {
-  isFindInPage = true
-
-  for (var i = 0; i < pageViews.length; i++) {
-    pageViews[i].div.style.visibility = 'visible'
-    if (pageViews[i].textLayer) {
-      pageViews[i].textLayer.div.style.display = 'block'
-    }
-  }
-}
-
-function endFindInPage () {
-  isFindInPage = false
-  updateVisiblePages()
-}
-
-/* these functions are called from the parent process */
-
-window.parentProcessActions = {
-  downloadPDF: downloadPDF,
-  printPDF: printPDF,
-  startFindInPage: startFindInPage,
-  endFindInPage: endFindInPage
-}
+window.addEventListener('afterprint', restoreAfterPrint)
+window.parentProcessActions = { downloadPDF, printPDF, startFindInPage, endFindInPage }

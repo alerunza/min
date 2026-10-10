@@ -1,3 +1,4 @@
+// Svelto: accessible address editing and safe composition/input handling.
 var searchbar = require('searchbar/searchbar.js')
 var webviews = require('webviews.js')
 var modalMode = require('modalMode.js')
@@ -84,6 +85,8 @@ const tabEditor = {
   },
   initialize: function () {
     tabEditor.input.setAttribute('placeholder', l('searchbarPlaceholder'))
+    tabEditor.input.setAttribute('aria-label', l('searchbarPlaceholder'))
+    searchbar.el.setAttribute('aria-label', l('searchbarPlaceholder'))
 
     tabEditor.star = bookmarkStar.create()
     tabEditor.container.appendChild(tabEditor.star)
@@ -101,7 +104,7 @@ const tabEditor = {
 
       // handles all inputs except for the case where the selection is moved (since we call preventDefault() there)
       searchbar.showResults(this.value, {
-        isDeletion: e.inputType.includes('delete')
+        isDeletion: (e.inputType || '').includes('delete')
       })
     })
 
@@ -110,6 +113,9 @@ const tabEditor = {
     })
 
     tabEditor.input.addEventListener('keypress', function (e) {
+      if (e.isComposing || e.keyCode === 229) {
+        return
+      }
       if (e.keyCode === 13) { // return key pressed; update the url
         if (this.getAttribute('data-autocomplete-text') && this.getAttribute('data-autocomplete-text').toLowerCase() === this.value.toLowerCase()) {
           // The original autocompletion can contain additional information, such as a protocol or different capitalization than what was typed

@@ -1,3 +1,4 @@
+// Svelto: correctly encode reader URLs and print the requested tab.
 var webviews = require('webviews.js')
 var keybindings = require('keybindings.js')
 var urlParser = require('util/urlParser.js')
@@ -7,7 +8,7 @@ var readerDecision = require('readerDecision.js')
 var readerView = {
   readerURL: 'min://app/reader/index.html',
   getReaderURL: function (url) {
-    return readerView.readerURL + '?url=' + url
+    return readerView.readerURL + '?url=' + encodeURIComponent(url)
   },
   isReader: function (tabId) {
     return tabs.get(tabId).url.indexOf(readerView.readerURL) === 0
@@ -35,7 +36,7 @@ var readerView = {
     return button
   },
   updateButton: function (tabId, button) {
-    var button = button || document.querySelector('.reader-button[data-tab="{id}"]'.replace('{id}', tabId))
+    button = button || document.querySelector('.reader-button[data-tab="{id}"]'.replace('{id}', tabId))
     var tab = tabs.get(tabId)
 
     if (readerView.isReader(tabId)) {
@@ -69,7 +70,7 @@ var readerView = {
       throw new Error("attempting to print in a tab that isn't a reader page")
     }
 
-    webviews.callAsync(tabs.getSelected(), 'executeJavaScript', 'parentProcessActions.printArticle()')
+    webviews.callAsync(tabId, 'executeJavaScript', 'parentProcessActions.printArticle()')
   },
   initialize: function () {
     // This is a defense-in-depth measure to prevent content inside the reader page from manipulating the url query parma

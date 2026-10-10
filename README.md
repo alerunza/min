@@ -1,3 +1,41 @@
+# Svelto — macOS preview
+
+A personal evolution of [Min](https://github.com/minbrowser/min): minimal, lightweight, and focused on the Mac. The Quiet UI preserves Min's tab/task layout and in-tab address bar. Logo and icons remain temporary upstream assets.
+
+## Development
+
+Use Node 24.10.x (see `.nvmrc`). Install with `npm ci --omit=optional --ignore-scripts`, then run `./script/build_and_run.sh`. The Run script installs/prepares Electron in its fully local staging directory before building. This avoids installation signing errors in synced Documents folders. `npm start` remains available for fully local development checkouts after runtime setup. Development data lives in `~/Library/Application Support/Svelto-development`; packaged builds use `~/Library/Application Support/Svelto`. Neither imports or changes Min's profile.
+
+`SVELTO_USER_DATA_DIR=/absolute/path` overrides both user and session data for disposable tests. Leave it unset for normal use.
+
+## macOS build and launch
+
+Run `./script/build_and_run.sh` or use the Codex Run action. The script packages for the host architecture and opens Svelto. Use `--verify` to confirm the process starts, `--logs` for runtime logs, or `--debug` for LLDB.
+
+The Run script stages the build under the macOS temporary directory to avoid signing failures from synced-folder Finder metadata. `output/build-path.txt` records the current app location. Set `SVELTO_BUILD_ROOT` to choose another fully local build directory. Direct `npm run buildMacArm` output remains `dist/app/mac-arm64/Svelto.app` and `dist/app/svelto-v0.1.1-mac-arm64.zip`.
+
+This is a local, ad-hoc-signed development build. Public distribution still needs Developer ID signing, notarization, a complete dependency notice inventory, and a release/update policy. Min update prompts are disabled until Svelto has its own release endpoint. The internal `min://` protocol is retained for compatibility.
+
+## Sleeping tabs
+
+Right-click an inactive tab and choose **Sleep tab — reloads when reopened**. Click it to wake it. Eligible pages release their renderer while the tab keeps its place and address. Active/private tabs, playing media, downloads, pending permissions and detectable unsaved work stay awake. Waking reloads the page; custom JavaScript state cannot always be detected. See the [resource verification](docs/fork/MACOS_SUSPENSION_RESOURCE_REPORT.md) and [English changelog](docs/fork/CHANGELOG.md).
+
+## Verification
+
+- `npm run test:suspension`: verify manual sleep, safeguards, restoration, restart and Quiet UI in an isolated packaged app.
+- `npm run benchmark:resources`: create a temporary diagnostic app copy and measure captures, CPU and tab lifecycle resources.
+- `npm run build`: compile application bundles.
+- `npm test`: upstream StandardJS lint; this is not a functional test suite.
+- `npm run test:smoke`: exercise the packaged Apple Silicon app using Playwright, a disposable profile, and a local fixture server. Set `SVELTO_TEST_EXECUTABLE` for another executable path. Checks cover identity/data isolation, English UI, first run, tabs, navigation, download contents and session persistence.
+
+When macOS makes source files unavailable as dataless placeholders, run from a fully local checkout. Never replace personal profiles to work around build failures.
+
+## Attribution
+
+Svelto is a fork, not an official Min release. Original authors and licenses remain credited in `LICENSE.txt`, `NOTICE.txt`, and the bundled component licenses. The upstream README follows for reference.
+
+---
+
 # Min
 
 Min is a fast, minimal browser that protects your privacy. It includes an interface designed to minimize distractions, and features such as:

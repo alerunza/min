@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+<!-- Modified for Svelto: app title (2026-10-09). -->
 <html>
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Security-Policy" content="script-src 'self'" />
 
-    <title>Min</title>
+    <title>Svelto</title>
 
     <link rel="stylesheet" href="dist/bundle.css" />
     <link rel="stylesheet" href="ext/icons/iconfont.css" />
@@ -136,7 +137,7 @@
       </div>
       <div id="tabs">
         <div id="tab-editor" hidden>
-          <input id="tab-editor-input" spellcheck="false" />
+          <input id="tab-editor-input" spellcheck="false" role="combobox" aria-autocomplete="both" aria-haspopup="dialog" aria-expanded="false" aria-controls="searchbar" />
         </div>
         <div id="tabs-inner" role="tablist" class="has-thin-scrollbar"></div>
       </div>
@@ -156,37 +157,13 @@
       data-label="viewTasks"
       tabindex="-1"
     >
-      <svg
-        version="1.1"
-        viewBox="0.0 0.0 26.0 26.0"
-        fill="none"
-        stroke="none"
-        stroke-linecap="square"
-        stroke-miterlimit="10"
-        xmlns:xlink="http://www.w3.org/1999/xlink"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <g clip-path="url(#p.0)">
-          <path
-            fill="currentColor"
-            d="m0 0l32 0l0 4l-32 0z"
-            fill-rule="evenodd"
-          />
-          <path
-            fill="currentColor"
-            d="m0 11l32 0l0 4l-32 0z"
-            fill-rule="evenodd"
-          />
-          <path
-            fill="currentColor"
-            d="m0 22l32 0l0 4l-32 0z"
-            fill-rule="evenodd"
-          />
-        </g>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+        <path d="m3 12 9 5 9-5M3 16l9 5 9-5" />
       </svg>
     </button>
 
-    <div id="searchbar" class="theme-background-color theme-text-color">
+    <div id="searchbar" class="theme-background-color theme-text-color" role="dialog" hidden>
       <div class="top-answer-area"></div>
     </div>
 
@@ -200,11 +177,13 @@
         <i id="rightArrow" class="i carbon:chevron-right"></i>
       </div>
       <img id="webview-placeholder" hidden aria-hidden="true" />
-      <div id="ntp-content">
-          <img id="ntp-background" hidden>
+      <div id="ntp-content" inert aria-hidden="true">
+          <img id="ntp-background" alt="" hidden>
+          <div id="ntp-welcome"><h1>Svelto</h1><p data-string="newTabWelcome"></p></div>
+          <p id="ntp-background-error" role="alert" hidden></p>
           <div id="ntp-background-controls">
-            <button id="ntp-image-remove"><i class="i carbon:trash-can"></i></button>
-            <button id="ntp-image-picker"><i class="i carbon:camera"></i></button>
+            <button id="ntp-image-remove" data-label="removeTabBackground" hidden><i class="i carbon:trash-can"></i></button>
+            <button id="ntp-image-picker" data-label="chooseTabBackground"><i class="i carbon:camera"></i></button>
           </div>
       </div>
     </div>
@@ -231,7 +210,7 @@
       </button>
     </div>
 
-    <div id="task-overlay" class="" hidden tabindex="-1">
+    <div id="task-overlay" class="" hidden inert tabindex="-1" role="dialog" aria-modal="true">
       <div
         class="simulated-navbar windowDragHandle"
         id="task-overlay-navbar"
@@ -241,14 +220,15 @@
         <input type="search" id="task-search-input"/>
       </div>
     </div>
+      <div id="task-search-status" role="status" hidden></div>
       <div id="task-area"></div>
-      <button id="add-task">
+      <button id="add-task" tabindex="-1">
         <i class="i carbon:new-tab"></i>
         <span></span>
       </button>
     </div>
 
-    <div id="download-bar" hidden>
+    <div id="download-bar" role="region" hidden>
       <div id="download-container" role="list" class="has-thin-scrollbar"></div>
       <button id="download-close-button" class="i carbon:close"></button>
     </div>

@@ -272,3 +272,20 @@ dd {
 svg {
   display: none;
 }
+
+/* Svelto Quiet: retain Charter, with calmer colors and a readable measure. */
+@media screen {
+  body.mac { background: #fffefa; color: #29352c; }
+  body.mac[theme="dark"] { background: #252726; color: #edf0ea; }
+  body.mac[theme="sepia"] { background: #f5ecd9; color: #4b4030; }
+  body.mac .reader-main { max-width: 704px; padding: 24px; box-sizing: border-box; overflow-wrap: anywhere; }
+  body.mac p, body.mac li { line-height: 1.65; }
+  body.mac .article-authors { font-size: 15px; color: #66716a; margin: 8px 0 24px; }
+  body.mac[theme="dark"] .article-authors { color: #a6b2a8; }
+  body.mac a { color: #48614c; }
+  body.mac[theme="dark"] a { color: #bbd0bc; }
+  body.mac[theme="sepia"] a { color: #685c38; }
+  body.mac table { display: block; max-width: 100%; overflow-x: auto; }
+  body.mac :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+  @media (max-width: 390px) { body.mac .reader-main { padding: 20px; font-size: 18px; } }
+}

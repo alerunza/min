@@ -1,3 +1,4 @@
+// Modified for Svelto: persistent task search state and accessible overlay lifecycle.
 const { ipcRenderer } = require('electron')
 
 var webviews = require('webviews.js')
@@ -194,11 +195,13 @@ var taskOverlay = {
 
     this.isShown = true
     taskSwitcherButton.classList.add('active')
+    taskSwitcherButton.setAttribute('aria-expanded', 'true')
 
     taskOverlay.render()
 
     // un-hide the overlay
     this.overlayElement.hidden = false
+    this.overlayElement.inert = false
 
     // scroll to the selected element and focus it
     var currentTabElement = document.querySelector('.task-tab-item[data-tab="{id}"]'.replace('{id}', tasks.getSelected().tabs.getSelected()))
@@ -233,12 +236,14 @@ var taskOverlay = {
       taskContainer.appendChild(el)
       taskOverlay.addTabDragging(el.querySelector('.task-tabs-container'))
     })
+    taskOverlay.filterTasks()
   },
 
   hide: function () {
     if (this.isShown) {
       this.isShown = false
       this.overlayElement.hidden = true
+      this.overlayElement.inert = true
 
       // wait until the animation is complete to remove the tab elements
       setTimeout(function () {
@@ -275,6 +280,7 @@ var taskOverlay = {
       browserUI.switchToTab(tabs.getSelected())
 
       taskSwitcherButton.classList.remove('active')
+      taskSwitcherButton.setAttribute('aria-expanded', 'false')
     }
   },
 
@@ -286,11 +292,57 @@ var taskOverlay = {
     }
   },
 
+  filterTasks: function () {
+    var search = document.getElementById('task-search-input').value.toLowerCase().trim()
+    var status = document.getElementById('task-search-status')
+    status.hidden = !search
+    if (!search) return
+    var totalTabMatches = 0
+
+    tasks.forEach(function (task) {
+      var taskContainer = document.querySelector(`.task-container[data-task="${task.id}"]`)
+
+      var taskTabMatches = 0
+      task.tabs.forEach(function (tab) {
+        var tabContainer = document.querySelector(`.task-tab-item[data-tab="${tab.id}"]`)
+
+        var searchText = (task.name + ' ' + tab.title + ' ' + tab.url).toLowerCase()
+
+        const searchMatches = search.split(' ').every(word => searchText.includes(word))
+        if (searchMatches) {
+          tabContainer.hidden = false
+          taskTabMatches++
+          totalTabMatches++
+
+          if (totalTabMatches === 1) {
+            // first match
+            tabContainer.classList.add('fakefocus')
+          } else {
+            tabContainer.classList.remove('fakefocus')
+          }
+        } else {
+          tabContainer.classList.remove('fakefocus')
+          tabContainer.hidden = true
+        }
+      })
+
+      if (taskTabMatches === 0) {
+        taskContainer.hidden = true
+      } else {
+        taskContainer.hidden = false
+        taskContainer.classList.remove('collapsed')
+        taskContainer.querySelector('.task-collapse-button').setAttribute('aria-expanded', 'true')
+      }
+    })
+
+    status.textContent = totalTabMatches ? l('taskSearchMatchCount').replace('%n', totalTabMatches) : l('taskSearchNoResults')
+  },
   initializeSearch: function () {
     var container = document.querySelector('.task-search-input-container')
     var input = document.getElementById('task-search-input')
 
     input.placeholder = l('tasksSearchTabs') + ' (T)'
+    input.setAttribute('aria-label', l('tasksSearchTabs'))
 
     container.addEventListener('click', e => { e.stopPropagation(); input.focus() })
 
@@ -300,51 +352,13 @@ var taskOverlay = {
       }
     })
 
-    input.addEventListener('input', function (e) {
-      var search = input.value.toLowerCase().trim()
-
-      if (!search) {
-        // reset the overlay
+    input.addEventListener('input', function () {
+      if (!input.value.trim()) {
         taskOverlay.render()
         input.focus()
-        return
+      } else {
+        taskOverlay.filterTasks()
       }
-
-      var totalTabMatches = 0
-
-      tasks.forEach(function (task) {
-        var taskContainer = document.querySelector(`.task-container[data-task="${task.id}"]`)
-
-        var taskTabMatches = 0
-        task.tabs.forEach(function (tab) {
-          var tabContainer = document.querySelector(`.task-tab-item[data-tab="${tab.id}"]`)
-
-          var searchText = (task.name + ' ' + tab.title + ' ' + tab.url).toLowerCase()
-
-          const searchMatches = search.split(' ').every(word => searchText.includes(word))
-          if (searchMatches) {
-            tabContainer.hidden = false
-            taskTabMatches++
-            totalTabMatches++
-
-            if (totalTabMatches === 1) {
-              // first match
-              tabContainer.classList.add('fakefocus')
-            } else {
-              tabContainer.classList.remove('fakefocus')
-            }
-          } else {
-            tabContainer.hidden = true
-          }
-        })
-
-        if (taskTabMatches === 0) {
-          taskContainer.hidden = true
-        } else {
-          taskContainer.hidden = false
-          taskContainer.classList.remove('collapsed')
-        }
-      })
     })
 
     input.addEventListener('keypress', function (e) {
@@ -400,6 +414,9 @@ var taskOverlay = {
     keybindings.defineShortcut('addTask', addTaskFromMenu)
     ipcRenderer.on('addTask', addTaskFromMenu) // for menu item
 
+    taskOverlay.overlayElement.setAttribute('aria-label', l('viewTasks'))
+    taskSwitcherButton.setAttribute('aria-expanded', 'false')
+    taskSwitcherButton.setAttribute('aria-controls', 'task-overlay')
     taskSwitcherButton.title = l('viewTasks')
     addTaskLabel.textContent = l('newTask')
 

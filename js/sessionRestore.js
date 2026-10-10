@@ -1,18 +1,27 @@
+/* globals ipc */
+// Svelto: checkpoint changes, preserve valid snapshots and recover from damaged sessions.
 var browserUI = require('browserUI.js')
-var webviews = require('webviews.js')
 var tabEditor = require('navbar/tabEditor.js')
 var tabState = require('tabState.js')
 var settings = require('util/settings/settings.js')
 var taskOverlay = require('taskOverlay/taskOverlay.js')
-const writeFileAtomic = require('write-file-atomic')
+const sessionStore = require('util/sessionStore.js')
 const statistics = require('js/statistics.js')
 
 const sessionRestore = {
   savePath: window.globalArgs['user-data-path'] + (platformType === 'windows' ? '\\sessionRestore.json' : '/sessionRestore.json'),
   previousState: null,
-  save: function (forceSave, sync) {
-    //only one window (the focused one) should be responsible for saving session restore data
-    if (!document.body.classList.contains('focused')) {
+  saveTimeout: null,
+  scheduleSave: function () {
+    if (sessionRestore.saveTimeout) return
+    sessionRestore.saveTimeout = setTimeout(function () {
+      sessionRestore.saveTimeout = null
+      sessionRestore.save()
+    }, 250)
+  },
+  save: function (forceSave, sync, allowUnfocused) {
+    // The last-focused live window owns checkpoints, including while the app is in the background.
+    if (!allowUnfocused && !ipc.sendSync('is-session-save-owner')) {
       return
     }
 
@@ -25,43 +34,38 @@ const sessionRestore = {
 
     // save all tabs that aren't private
 
-    for (var i = 0; i < data.state.tasks.length; i++) {
+    for (let i = 0; i < data.state.tasks.length; i++) {
       data.state.tasks[i].tabs = data.state.tasks[i].tabs.filter(function (tab) {
         return !tab.private
       })
     }
 
-    //if startupTabOption is "open a new blank task", don't save any tabs in the current task
+    // if startupTabOption is "open a new blank task", don't save any tabs in the current task
     if (settings.get('startupTabOption') === 3) {
-      for (var i = 0; i < data.state.tasks.length; i++) {
-        if (tasks.get(data.state.tasks[i].id).selectedInWindow) { //need to re-fetch the task because temporary properties have been removed
+      for (let i = 0; i < data.state.tasks.length; i++) {
+        if (tasks.get(data.state.tasks[i].id).selectedInWindow) { // need to re-fetch the task because temporary properties have been removed
           data.state.tasks[i].tabs = []
         }
       }
     }
 
     if (forceSave === true || stateString !== sessionRestore.previousState) {
-      if (sync === true) {
-        writeFileAtomic.sync(sessionRestore.savePath, JSON.stringify(data), {})
-      } else {
-        writeFileAtomic(sessionRestore.savePath, JSON.stringify(data), {}, function (err) {
-          if (err) {
-            console.warn(err)
-            statistics.incrementValue('sessionRestoreSaveAsyncWriteErrors')
-          }
-        })
+      try {
+        sessionStore.write(sessionRestore.savePath, JSON.stringify(data))
+        sessionRestore.previousState = stateString
+      } catch (err) {
+        console.warn('Could not checkpoint session:', err)
+        statistics.incrementValue('sessionRestoreSaveErrors')
       }
-      sessionRestore.previousState = stateString
     }
   },
+  prepareWindowClose: function () {
+    sessionRestore.save(true, true, true)
+    ipc.send('tab-state-change', [
+      ['task-updated', tasks.getSelected().id, 'selectedInWindow', null]
+    ])
+  },
   restoreFromFile: function () {
-    var savedStringData
-    try {
-      savedStringData = fs.readFileSync(sessionRestore.savePath, 'utf-8')
-    } catch (e) {
-      console.warn('failed to read session restore data', e)
-    }
-
     var startupConfigOption = settings.get('startupTabOption') || 2
     /*
     1 - reopen last task
@@ -80,20 +84,22 @@ const sessionRestore = {
     */
 
     try {
+      const snapshot = sessionStore.load(sessionRestore.savePath)
+      if (snapshot?.recovered) console.warn('Recovered previous session snapshot', snapshot.damagedPath)
       // first run, show the tour
-      if (!savedStringData) {
+      if (!snapshot) {
         tasks.setSelected(tasks.add()) // create a new task
 
         var newTab = tasks.getSelected().tabs.add({
-            url: 'https://minbrowser.github.io/min/tour'
+          url: 'min://app/pages/welcome/index.html'
         })
         browserUI.addTab(newTab, {
-         enterEditMode: false
+          enterEditMode: false
         })
         return
       }
 
-      var data = JSON.parse(savedStringData)
+      var data = snapshot.data
 
       // the data isn't restorable
       if ((data.version && data.version !== 2) || (data.state && data.state.tasks && data.state.tasks.length === 0)) {
@@ -172,12 +178,10 @@ const sessionRestore = {
 
       console.error('restoring session failed: ', e)
 
-      var backupSavePath = require('path').join(window.globalArgs['user-data-path'], 'sessionRestoreBackup-' + Date.now() + '.json')
-
-      writeFileAtomic.sync(backupSavePath, savedStringData, {})
+      var backupSavePath = e.backupPath || sessionRestore.savePath
 
       // destroy any tabs that were created during the restore attempt
-      tabState.initialize()
+      tabState.initialize(true)
 
       // create a new tab with an explanation of what happened
       var newTask = tasks.add()
@@ -230,11 +234,13 @@ const sessionRestore = {
   },
   initialize: function () {
     setInterval(sessionRestore.save, 30000)
+    tasks.on('*', sessionRestore.scheduleSave)
+    ipc.on('focus', sessionRestore.scheduleSave)
 
     window.onbeforeunload = function (e) {
       sessionRestore.save(true, true)
-      //workaround for notifying the other windows that the task open in this window isn't open anymore.
-      //This should ideally be done in windowSync, but it needs to run synchronously, which windowSync doesn't
+      // workaround for notifying the other windows that the task open in this window isn't open anymore.
+      // This should ideally be done in windowSync, but it needs to run synchronously, which windowSync doesn't
       ipc.send('tab-state-change', [
         ['task-updated', tasks.getSelected().id, 'selectedInWindow', null]
       ])

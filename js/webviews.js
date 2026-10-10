@@ -1,3 +1,5 @@
+/* global ipc */
+// Modified for Svelto: retain attachment addresses and ignore stale events during tab/window changes.
 var urlParser = require('util/urlParser.js')
 var settings = require('util/settings/settings.js')
 
@@ -5,7 +7,6 @@ var settings = require('util/settings/settings.js')
 
 var placeholderImg = document.getElementById('webview-placeholder')
 
-var hasSeparateTitlebar = settings.get('useSeparateTitlebar')
 var windowIsMaximized = false // affects navbar height on Windows
 var windowIsFullscreen = false
 
@@ -126,7 +127,7 @@ const webviews = {
     }
   },
   emitEvent: function (event, tabId, args) {
-    if (!webviews.hasViewForTab(tabId)) {
+    if (!tabs.get(tabId) || !webviews.hasViewForTab(tabId)) {
       // the view could have been destroyed between when the event was occured and when it was recieved in the UI process, see https://github.com/minbrowser/min/issues/604#issuecomment-419653437
       return
     }
@@ -158,11 +159,7 @@ const webviews = {
         height: window.innerHeight
       }
     } else {
-      if (!hasSeparateTitlebar && (window.platformType === 'linux' || window.platformType === 'windows') && !windowIsMaximized && !windowIsFullscreen) {
-        var navbarHeight = 48
-      } else {
-        var navbarHeight = 36
-      }
+      const navbarHeight = document.getElementById('navbar').getBoundingClientRect().height
 
       const viewMargins = webviews.viewMargins
 
@@ -214,7 +211,9 @@ const webviews = {
     }
 
     tasks.getTaskContainingTab(tabId).tabs.update(tabId, {
-      hasWebContents: true
+      hasWebContents: true,
+      ...(tabData.sleeping ? { sleeping: false } : {}),
+      ...(tabData.sleepReason ? { sleepReason: null } : {})
     })
   },
   setSelected: function (id, options) { // options.focus - whether to focus the view. Defaults to true.
@@ -422,6 +421,12 @@ webviews.bindEvent('did-navigate', function (tabId, url, httpResponseCode, httpS
 
 webviews.bindEvent('did-finish-load', onPageLoad)
 
+ipc.on('download-navigation-complete', function (event, data) {
+  if (webviews.hasViewForTab(data.tabId) && tabs.get(data.tabId).url === data.downloadURL && data.pageURL) {
+    onPageURLChange(data.tabId, data.pageURL)
+  }
+})
+
 webviews.bindEvent('page-title-updated', function (tabId, title, explicitSet) {
   tabs.update(tabId, {
     title: title
@@ -489,6 +494,13 @@ webviews.bindIPC('downloadFile', function (tabId, args) {
   }
 })
 
+ipc.on('tab-slept', function (e, data) {
+  const task = tasks.getTaskContainingTab(data.id)
+  if (!task) return
+  task.tabs.update(data.id, { hasWebContents: false, sleeping: true, hasAudio: false, loaded: false, scrollPosition: data.scrollPosition, previewImage: '', sleepReason: null })
+  if (tabs.getSelected() === data.id) webviews.setSelected(data.id)
+})
+
 ipc.on('view-event', function (e, args) {
   webviews.emitEvent(args.event, args.tabId, args.args)
 })
@@ -499,7 +511,7 @@ ipc.on('async-call-result', function (e, args) {
 })
 
 ipc.on('view-ipc', function (e, args) {
-  if (!webviews.hasViewForTab(args.id)) {
+  if (!tabs.get(args.id) || !webviews.hasViewForTab(args.id)) {
     // the view could have been destroyed between when the event was occured and when it was recieved in the UI process, see https://github.com/minbrowser/min/issues/604#issuecomment-419653437
     return
   }
@@ -515,7 +527,9 @@ setInterval(function () {
 }, 15000)
 
 ipc.on('captureData', function (e, data) {
-  tabs.update(data.id, { previewImage: data.url })
+  const task = tasks.getTaskContainingTab(data.id)
+  if (!task) return // the capture can arrive after the tab has closed
+  task.tabs.update(data.id, { previewImage: data.url })
   if (data.id === webviews.selectedId && webviews.placeholderRequests.length > 0) {
     placeholderImg.src = data.url
     placeholderImg.hidden = false

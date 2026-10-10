@@ -1,0 +1,13 @@
+Svelto is derived from Min (https://github.com/minbrowser/min).
+Original Min contributors, including PalmerAL, retain their copyright.
+Svelto modifications: alerunza, 2026.
+
+Min and bundled Readability are licensed under Apache License 2.0.
+Readability: Copyright (c) 2010 Arc90 Inc.
+See LICENSE.txt and ext/readability-master/LICENSE.md.
+
+The bundled abp-filter-parser-modified is licensed under MPL 2.0.
+Its source and license are available in ext/abp-filter-parser-modified
+and in this fork: https://github.com/alerunza/min
+
+This is an initial attribution notice, not a complete dependency license audit.
