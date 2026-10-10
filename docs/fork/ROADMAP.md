@@ -68,7 +68,7 @@ Record the app commit, macOS version/architecture, reproduction steps and result
 - [ ] Reproduce and classify the 55 candidate reports in MACOS_BACKLOG: current bugs, duplicates, upstream fixes, feature requests or external limits.
 - [ ] Fix remaining crashes and data-loss risks with reproducible regression checks.
 - [x] Verify abrupt main-process termination/relaunch with 48 tabs in three named Tasks, two-window synchronization, background checkpoints, private exclusion, native close/quit and damaged snapshot recovery. Preserve tab order/IDs, selected tabs, mute states, Task names/collapse state and closed-tab history.
-- [ ] Extend recovery verification to renderer/GPU failures, update interruption, full-disk/power-loss behavior and multi-hour sessions on real sites. The bounded fixture test does not establish long-session or resource stability.
+- [ ] Extend recovery verification to renderer/GPU failures, update interruption, full-disk/power-loss behavior and repeated day-long sessions. The separate two-hour mixed-site test verifies main-process relaunch, but does not establish general long-session or resource stability.
 - [ ] Investigate intermittent startup/debugger failures seen under Playwright on Electron 43.4.1/macOS 27 (including an Electron Framework inspector/libuv native crash). Read-only polling retries a lost inspector promise; actions are never retried automatically. Chromium GPU/deprecation warnings remain under investigation.
 - [ ] Verify camera, microphone, screen sharing, permissions, uploads, printing, PDFs and file opening.
 - [ ] Check external links, default-browser handling, login flows, password-manager integrations and commonly used sites.
@@ -79,7 +79,10 @@ Record the app commit, macOS version/architecture, reproduction steps and result
 - [x] Establish a repeatable macOS ARM64 startup/memory/CDP-inspected CPU baseline with 0/10/30/50 actually loaded local documents: five startup pairs and three resource repetitions. See [performance baseline](MACOS_PERFORMANCE_BASELINE.md).
 - [x] Profile background renderer memory, tab switching/closing and CDP observer effects in three lifecycle runs plus three separate 50-tab visibility controls. See [background memory report](MACOS_BACKGROUND_MEMORY_REPORT.md).
 - [ ] Prototype opt-in suspension of eligible inactive tabs; verify exclusions, reload/restoration, session behavior and memory benefit before enabling automatic suspension.
-- [ ] Measure address/input latency and representative active-site workloads; use matched hardware/settings before speed or memory comparisons.
+- [x] Measure address/input latency with 30 foreground trials, real autocomplete separately, four public sites/scrolling and a bounded video workload on macOS 27 ARM64. See [usage/performance report](MACOS_USAGE_PERFORMANCE_REPORT.md); use matched hardware/settings before any speed or memory comparisons.
+- [x] Investigate 50-tab CPU bursts with two 180-interval runs and native process samples. Longer-window means are about 3%, but the causal explanation and intermittent peaks remain open.
+- [x] Complete a two-hour mixed 20-tab session with 24 live draft/document checks and abrupt main-process termination/relaunch. Ordered IDs/URLs and selected content restore; see the [usage/performance report](MACOS_USAGE_PERFORMANCE_REPORT.md) for the complete memory series and limits.
+- [ ] Extend workload verification to login-heavy/media-heavy sites, repeated longer sessions and additional Mac hardware; these bounded observations do not establish universal compatibility or leak freedom.
 - [ ] Design optional Min data import with backups and reversible migrations.
 
 ## Product candidates

@@ -61,3 +61,7 @@ SVELTO_TEST_EXECUTABLE="$PWD/dist/app/mac-arm64/Svelto.app/Contents/MacOS/Svelto
 ```
 
 Defaults: three repetitions, 50 documents, ten-second settling and fifteen-second CPU windows. `SVELTO_BENCH_CONTROL_TABS` changes the visibility-control count (5–50). General timing/repetition and executable options are documented in the baseline. Raw results are local ignored files `output/background-memory-macos.json` and `output/background-memory-native-control.json`. The report retains every headline observation. Pilots and a calibration run whose temporary instances overlapped are excluded; the final control closes each instance before the next repetition. The app runtime and preview ZIP are unchanged.
+
+## Follow-up measurements
+
+See the [macOS usage/performance report](MACOS_USAGE_PERFORMANCE_REPORT.md) for longer CPU windows, active public sites/video, address/search latency and the long-session/recovery investigation. Workload and observer conditions differ; these measurements do not imply a runtime optimization.

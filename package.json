@@ -90,7 +90,11 @@
     "benchmark:background": "SVELTO_BENCH_BACKGROUND=1 SVELTO_BENCH_COUNTS=50 node scripts/benchmarks/macos.cjs",
     "benchmark:macos": "node scripts/benchmarks/macos.cjs",
     "test:sessions": "node tests/session-store.cjs && node tests/smoke-sessions-macos.cjs",
-    "test:permissions": "node tests/permission-policy.cjs && node tests/smoke-permissions-files-macos.cjs"
+    "test:permissions": "node tests/permission-policy.cjs && node tests/smoke-permissions-files-macos.cjs",
+    "benchmark:cpu": "SVELTO_USAGE_MODE=cpu node scripts/benchmarks/usage-macos.cjs",
+    "benchmark:sites": "SVELTO_USAGE_MODE=sites node scripts/benchmarks/usage-macos.cjs",
+    "benchmark:latency": "SVELTO_USAGE_MODE=latency node scripts/benchmarks/usage-macos.cjs",
+    "benchmark:soak": "SVELTO_USAGE_MODE=soak node scripts/benchmarks/usage-macos.cjs"
   },
   "repository": {
     "type": "git",

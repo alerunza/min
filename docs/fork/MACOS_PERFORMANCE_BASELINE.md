@@ -81,3 +81,7 @@ SVELTO_TEST_EXECUTABLE="$PWD/dist/app/mac-arm64/Svelto.app/Contents/MacOS/Svelto
 The default study uses five fresh/repeat startup pairs and three resource repetitions at 0/10/30/50 documents. Options: `SVELTO_BENCH_STARTUPS`, `SVELTO_BENCH_REPEATS`, `SVELTO_BENCH_COUNTS`, `SVELTO_BENCH_SETTLE_MS`, `SVELTO_BENCH_SAMPLE_SECONDS`, `SVELTO_BENCH_OUTPUT`, and `SVELTO_BENCH_SOURCE_COMMIT` for a staged checkout without Git metadata. Profiles are temporary and deleted after the run; results persist. Native process inspection must be allowed on the host.
 
 Raw observations, per-process RSS/CPU samples, footprint JSON, warnings and environment are saved locally in `output/performance-macos.json` (ignored by Git). The tables above retain every headline observation in the repository. Pilot/calibration runs are separate and excluded.
+
+## Follow-up measurements
+
+See the [macOS usage/performance report](MACOS_USAGE_PERFORMANCE_REPORT.md) for longer CPU windows, active public sites/video, address/search latency and the long-session/recovery investigation. Workload and observer conditions differ; these measurements do not imply a runtime optimization.

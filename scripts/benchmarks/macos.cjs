@@ -728,7 +728,7 @@ function median(values) {
   const middle = Math.floor(list.length / 2)
   return list.length % 2 ? list[middle] : (list[middle - 1] + list[middle]) / 2
 }
-;(async () => {
+async function benchmark() {
   results.environment = {
     platform: os.platform(),
     arch: os.arch(),
@@ -814,17 +814,37 @@ function median(values) {
   results.status = 'complete'
   save()
   console.log(JSON.stringify(results.summary))
-})()
-  .catch((e) => {
-    results.status = 'failed'
-    results.failures.push({ error: e.stack, logs: current?.logs })
-    save()
-    console.error(e.stack)
-    process.exitCode = 1
-  })
-  .finally(async () => {
-    await stop().catch(() => {})
-    server.closeAllConnections()
-    await new Promise((r) => server.close(r))
-    fs.rmSync(work, { recursive: true, force: true })
-  })
+}
+if (require.main === module)
+  benchmark()
+    .catch((e) => {
+      results.status = 'failed'
+      results.failures.push({ error: e.stack, logs: current?.logs })
+      save()
+      console.error(e.stack)
+      process.exitCode = 1
+    })
+    .finally(async () => {
+      await stop().catch(() => {})
+      server.closeAllConnections()
+      await new Promise((r) => server.close(r))
+      fs.rmSync(work, { recursive: true, force: true })
+    })
+
+module.exports = {
+  launch,
+  stop,
+  profile,
+  snapshot,
+  tabPids,
+  sleep,
+  run,
+  wait,
+  median,
+  server,
+  root,
+  executable,
+  work,
+  fixture,
+  getCurrent: () => current
+}
